@@ -25,6 +25,7 @@ def test_analyze_returns_three_fallback_questions(client):
     result = response.json()["data"]
     assert result["source"] == "fallback"
     assert len(result["questions"]) >= 3
+    assert all(len(item["suggestions"]) == 3 for item in result["questions"])
 
 
 @pytest.mark.parametrize(

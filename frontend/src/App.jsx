@@ -251,8 +251,8 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
     } finally { setBusy(false); }
   }
 
-  async function sendMessage(skip = false) {
-    const text = skip ? "" : composer.trim();
+  async function sendMessage(skip = false, suggestedAnswer = "") {
+    const text = skip ? "" : (suggestedAnswer || composer).trim();
     if (!text && !skip) return;
     if (phase === "card") {
       append({ role: "user", text }, { role: "ai", text: "Карточка уже собрана. Измените нужное поле справа — рейтинг пересчитается автоматически." });
@@ -289,6 +289,10 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
       await buildCard(nextAnswers);
     }
   }
+
+  const currentSuggestions = phase === "questions"
+    ? questions[questionIndex]?.suggestions || []
+    : [];
 
   async function loadDemo() {
     try {
@@ -350,6 +354,11 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
         </div>
         <div className="composer-wrap">
           {phase === "draft" && <button type="button" className="demo-chip" onClick={loadDemo}><Icon name="spark" /> Загрузить пример</button>}
+          {phase === "questions" && currentSuggestions.map((suggestion, index) => (
+            <button type="button" className="demo-chip" disabled={busy} key={`${questionIndex}-${index}`} onClick={() => sendMessage(false, suggestion)}>
+              {index + 1}. {suggestion}
+            </button>
+          ))}
           <div className="composer">
             <textarea
               value={composer}

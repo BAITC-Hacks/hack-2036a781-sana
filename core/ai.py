@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from typing import Any, Literal, TypeVar
 
@@ -16,6 +17,7 @@ from core.rating import METRICS, calculate_rating, missing_fields
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
+LOGGER = logging.getLogger(__name__)
 
 MAX_DRAFT_LENGTH = 4000
 MAX_ANSWER_LENGTH = 2000
@@ -51,6 +53,7 @@ class ClarificationQuestion(BaseModel):
 
     key: QuestionKey
     question: str = Field(min_length=3, max_length=300)
+    suggestions: list[str] = Field(min_length=3, max_length=3)
 
 
 class AnalyzeModelResponse(BaseModel):
@@ -118,6 +121,63 @@ FALLBACK_QUESTIONS_I18N = {
         "business_link": "Who is the contact person, and how can the team receive feedback?",
     },
 }
+FALLBACK_SUGGESTIONS_I18N = {
+    "ru": {
+        "context_need": [
+            "Сейчас процесс выполняется вручную и занимает слишком много времени.",
+            "Используем несколько несвязанных инструментов, поэтому возникают ошибки.",
+            "Текущий процесс ещё нужно изучить вместе с будущими пользователями.",
+        ],
+        "data_materials": [
+            "Есть обезличенные примеры и описание текущего процесса.",
+            "Есть только несколько примеров, дополнительные данные соберём позже.",
+            "Готовых материалов пока нет, их нужно создать в рамках проекта.",
+        ],
+        "expected_result": [
+            "Нужен работающий прототип, который можно показать пользователям.",
+            "Нужны исследование проблемы и проверенная концепция решения.",
+            "Нужны рекомендации, план внедрения и демонстрационный макет.",
+        ],
+        "success_criteria": [
+            "Пользователи выполняют задачу быстрее и допускают меньше ошибок.",
+            "Не менее пяти пользователей успешно проверяют прототип.",
+            "Заказчик принимает демонстрацию по заранее согласованному сценарию.",
+        ],
+        "constraints": [
+            "Срок — четыре недели, можно использовать только обезличенные данные.",
+            "Решение должно работать в браузере без платных сервисов.",
+            "Жёстких ограничений пока нет, их согласуем после первого прототипа.",
+        ],
+        "users": [
+            "Основные пользователи — преподаватели и методисты.",
+            "Решением будут пользоваться студенты и преподаватели.",
+            "Сначала прототип проверит небольшая пилотная группа.",
+        ],
+        "business_link": [
+            "Контактное лицо будет отвечать в чате и проводить встречу раз в неделю.",
+            "Команда получит письменную обратную связь после каждого этапа.",
+            "Доступна одна установочная встреча и финальная демонстрация.",
+        ],
+    },
+    "en": {
+        "context_need": ["The process is manual and takes too long.", "Several disconnected tools cause mistakes.", "We still need to study the current process with users."],
+        "data_materials": ["We have anonymized examples and a process description.", "We only have a few examples and will collect more later.", "No materials are ready yet; the project should create them."],
+        "expected_result": ["We need a working prototype for user testing.", "We need problem research and a validated solution concept.", "We need recommendations, an implementation plan, and a demo mockup."],
+        "success_criteria": ["Users complete the task faster with fewer errors.", "At least five users successfully test the prototype.", "The customer accepts the demo against an agreed scenario."],
+        "constraints": ["The deadline is four weeks and only anonymized data may be used.", "The solution must run in a browser without paid services.", "There are no strict constraints yet; we will agree them after the first prototype."],
+        "users": ["The main users are teachers and methodologists.", "Students and teachers will use the solution.", "A small pilot group will test the first version."],
+        "business_link": ["A contact person will answer in chat and meet weekly.", "The team will receive written feedback after each stage.", "One kickoff meeting and one final demo are available."],
+    },
+    "kk": {
+        "context_need": ["Қазір жұмыс қолмен орындалады және көп уақыт алады.", "Бірнеше байланыспаған құрал қателерге әкеледі.", "Қазіргі үдерісті пайдаланушылармен бірге әлі зерттеу керек."],
+        "data_materials": ["Иесіздендірілген мысалдар мен үдеріс сипаттамасы бар.", "Әзірге бірнеше мысал ғана бар, қалғанын кейін жинаймыз.", "Дайын материал жоқ, оны жоба аясында жасау керек."],
+        "expected_result": ["Пайдаланушыларға көрсетуге болатын жұмыс прототипі керек.", "Мәселені зерттеу және тексерілген шешім тұжырымдамасы керек.", "Ұсынымдар, енгізу жоспары және демо-макет керек."],
+        "success_criteria": ["Пайдаланушылар жұмысты жылдам әрі аз қатемен орындайды.", "Кемінде бес пайдаланушы прототипті сәтті тексереді.", "Тапсырыс беруші келісілген сценарий бойынша демонстрацияны қабылдайды."],
+        "constraints": ["Мерзім — төрт апта, тек иесіздендірілген деректер қолданылады.", "Шешім ақылы сервистерсіз браузерде жұмыс істеуі керек.", "Қатаң шектеулер әзірге жоқ, оларды алғашқы прототиптен кейін келісеміз."],
+        "users": ["Негізгі пайдаланушылар — оқытушылар мен әдіскерлер.", "Шешімді студенттер мен оқытушылар қолданады.", "Алғашқы нұсқаны шағын пилоттық топ тексереді."],
+        "business_link": ["Байланыс тұлғасы чатта жауап беріп, апта сайын кездесу өткізеді.", "Команда әр кезеңнен кейін жазбаша кері байланыс алады.", "Бір бастапқы кездесу және бір финалдық көрсетілім қолжетімді."],
+    },
+}
 LANGUAGE_NAMES = {"ru": "Russian", "kk": "Kazakh", "en": "English"}
 
 
@@ -160,6 +220,7 @@ def _ask_model(
     system_prompt: str,
     payload: dict,
     response_type: type[ModelResponse],
+    reasoning_effort: str | None = None,
 ) -> dict | None:
     client = _client()
     if client is None:
@@ -168,7 +229,11 @@ def _ask_model(
         response = client.responses.parse(
             model=os.getenv("OPENAI_MODEL", DEFAULT_OPENAI_MODEL).strip()
             or DEFAULT_OPENAI_MODEL,
-            reasoning={"effort": _reasoning_effort()},
+            reasoning={
+                "effort": reasoning_effort
+                if reasoning_effort in VALID_REASONING_EFFORTS
+                else _reasoning_effort()
+            },
             max_output_tokens=_max_output_tokens(),
             store=False,
             input=[
@@ -186,6 +251,7 @@ def _ask_model(
         return parsed.model_dump()
     except Exception:
         # Network, provider, refusal, and malformed-response errors use the safe fallback.
+        LOGGER.warning("OpenAI structured response failed; using fallback.", exc_info=True)
         return None
 
 
@@ -198,15 +264,28 @@ def _baseline_missing(draft: str) -> list[str]:
 def _fallback_questions(draft: str, language: str = "ru") -> dict:
     missing = _baseline_missing(draft)
     questions_by_key = FALLBACK_QUESTIONS_I18N.get(language, FALLBACK_QUESTIONS)
+    suggestions_by_key = FALLBACK_SUGGESTIONS_I18N.get(
+        language, FALLBACK_SUGGESTIONS_I18N["ru"]
+    )
     ordered_keys = [metric[0] for metric in METRICS if metric[0] in missing]
     questions = [
-        {"key": key, "question": questions_by_key[key]}
+        {
+            "key": key,
+            "question": questions_by_key[key],
+            "suggestions": suggestions_by_key[key],
+        }
         for key in ordered_keys[:5]
     ]
     if len(questions) < 3:
         for key in ("data_materials", "expected_result", "success_criteria"):
             if all(item["key"] != key for item in questions):
-                questions.append({"key": key, "question": questions_by_key[key]})
+                questions.append(
+                    {
+                        "key": key,
+                        "question": questions_by_key[key],
+                        "suggestions": suggestions_by_key[key],
+                    }
+                )
             if len(questions) == 3:
                 break
     return {"questions": questions, "missing": missing, "source": "fallback"}
@@ -224,6 +303,7 @@ def analyze_draft(draft: str, industry: str = "", language: str = "ru") -> dict:
         ANALYZE_SYSTEM_PROMPT + f"\nWrite all generated questions in {LANGUAGE_NAMES[language]}.",
         {"draft": draft.strip(), "industry": industry.strip(), "language": language},
         AnalyzeModelResponse,
+        "high",
     )
     if result is None:
         return fallback
@@ -236,9 +316,28 @@ def analyze_draft(draft: str, industry: str = "", language: str = "ru") -> dict:
                 continue
             key = item.get("key")
             question = item.get("question")
-            if key in VALID_KEYS and isinstance(question, str) and question.strip():
+            suggestions = item.get("suggestions")
+            clean_suggestions = []
+            if isinstance(suggestions, list):
+                for suggestion in suggestions:
+                    if isinstance(suggestion, str) and suggestion.strip():
+                        normalized = suggestion.strip()[:300]
+                        if normalized not in clean_suggestions:
+                            clean_suggestions.append(normalized)
+            if (
+                key in VALID_KEYS
+                and isinstance(question, str)
+                and question.strip()
+                and len(clean_suggestions) == 3
+            ):
                 if all(existing["key"] != key for existing in questions):
-                    questions.append({"key": key, "question": question.strip()[:300]})
+                    questions.append(
+                        {
+                            "key": key,
+                            "question": question.strip()[:300],
+                            "suggestions": clean_suggestions,
+                        }
+                    )
             if len(questions) == 5:
                 break
 

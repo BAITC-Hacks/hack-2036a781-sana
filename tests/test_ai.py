@@ -7,9 +7,9 @@ def test_responses_api_uses_best_model_reasoning_and_structured_output(monkeypat
     captured = {}
     parsed = ai.AnalyzeModelResponse(
         questions=[
-            {"key": "data_materials", "question": "Какие данные доступны?"},
-            {"key": "expected_result", "question": "Какой результат нужен?"},
-            {"key": "success_criteria", "question": "Как измерить успех?"},
+            {"key": "data_materials", "question": "Какие данные доступны?", "suggestions": ["Есть примеры.", "Есть описание.", "Данных пока нет."]},
+            {"key": "expected_result", "question": "Какой результат нужен?", "suggestions": ["Рабочий прототип.", "Исследование.", "План внедрения."]},
+            {"key": "success_criteria", "question": "Как измерить успех?", "suggestions": ["Работа выполняется быстрее.", "Меньше ошибок.", "Заказчик принимает результат."]},
         ]
     )
 
@@ -55,3 +55,4 @@ def test_provider_failure_keeps_local_fallback(monkeypatch):
 
     assert result["source"] == "fallback"
     assert len(result["questions"]) >= 3
+    assert all(len(item["suggestions"]) == 3 for item in result["questions"])
