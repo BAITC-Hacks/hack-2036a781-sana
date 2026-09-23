@@ -4,6 +4,7 @@ import logging
 import hashlib
 import hmac
 import secrets
+import os
 from pathlib import Path
 from typing import Any, Optional, Union
 from urllib.parse import urlparse
@@ -12,8 +13,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from core import ai, store
+from core import ai, store, accounts
 from core.rating import calculate_rating
+from app.account_routes import router as account_router, COOKIE
 
 
 LOGGER = logging.getLogger(__name__)
@@ -41,6 +43,38 @@ app = FastAPI(
     version="0.1.0",
 )
 app.mount("/static", StaticFiles(directory=STATIC_ROOT), name="static")
+app.include_router(account_router)
+
+
+@app.middleware("http")
+async def account_session(request: Request, call_next):
+    request.state.user = accounts.current(request.cookies.get(COOKIE, ""))
+    path = request.url.path
+    legacy = os.getenv("SANA_LEGACY_MODE", "0") == "1"
+    if path.startswith("/api/"):
+        if request.method not in {"GET", "HEAD", "OPTIONS"} and not legacy:
+            # A custom same-origin header cannot be sent by a cross-origin HTML form.
+            origin = request.headers.get("origin")
+            if request.headers.get("X-Sana-Request") != "1" or (origin and origin != str(request.base_url).rstrip("/")):
+                return JSONResponse({"ok": False, "error": {"message": "Обновите страницу и повторите запрос."}}, status_code=403)
+        public = path in {"/api/health", "/api/auth/me", "/api/auth/login", "/api/auth/register"} or (
+            request.method == "GET" and (path == "/api/tasks" or (path.startswith("/api/tasks/") and path.count("/") == 3)))
+        if not public and not request.state.user and not legacy:
+            return JSONResponse({"ok": False, "error": {"message": "Войдите в аккаунт."}}, status_code=401)
+        user = request.state.user
+        if user and request.method != "GET":
+            business_only = path in {"/api/analyze", "/api/build-card", "/api/edit-card-field", "/api/tasks"}
+            if (business_only and user["role"] != "business") or (path == "/api/teams" and user["role"] != "student"):
+                return JSONResponse({"ok": False, "error": {"message": "Это действие недоступно для вашей роли."}}, status_code=403)
+    response = await call_next(request)
+    if path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.exception_handler(accounts.AccountError)
+async def account_error(_request: Request, exc: accounts.AccountError):
+    return JSONResponse({"ok": False, "error": {"code": "account_error", "message": str(exc)}}, status_code=400)
 
 
 def _success(data: dict) -> JSONResponse:
@@ -123,14 +157,18 @@ def _has_access(request: Request, record: dict, header_name: str, hash_field: st
 
 
 def _public_record(record: dict) -> dict:
-    return {key: value for key, value in record.items() if key not in {"owner_token_hash", "team_token_hash"}}
+    return {key: value for key, value in record.items() if key not in {"owner_token_hash", "team_token_hash", "owner_id", "creator_id"}}
 
 
 def _owner_allowed(request: Request, task: dict) -> bool:
+    if task.get("owner_id"):
+        return bool(request.state.user and task["owner_id"] == request.state.user["id"])
     return _has_access(request, task, "X-Sana-Owner", "owner_token_hash")
 
 
 def _team_allowed(request: Request, team: dict) -> bool:
+    if team.get("creator_id"):
+        return accounts.member(request.state.user, team)
     return _has_access(request, team, "X-Sana-Team", "team_token_hash")
 
 
@@ -239,6 +277,8 @@ async def create_task(request: Request) -> JSONResponse:
     card["status"] = "published"
     owner_token = _new_token()
     card["owner_token_hash"] = _token_hash(owner_token)
+    if request.state.user:
+        card["owner_id"] = request.state.user["id"]
     saved = store.save_task(card)
     if not saved or not store.get_task(saved.get("id", "")):
         return _failure("internal_error", "Не удалось сохранить задачу. Повторите попытку.")
@@ -319,6 +359,8 @@ async def create_team(request: Request) -> JSONResponse:
         profile[field] = [item.strip() for item in values]
     team_token = _new_token()
     profile["team_token_hash"] = _token_hash(team_token)
+    if request.state.user:
+        profile["creator_id"] = request.state.user["id"]
     saved = store.save_team(profile)
     if not saved:
         return _failure("internal_error", "Не удалось создать команду.")
