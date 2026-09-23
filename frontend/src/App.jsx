@@ -161,14 +161,14 @@ function RatingPanel({ rating }) {
       </div>
       <div className="metric-list">
         {(rating?.breakdown || []).map((item) => (
-          <div className="metric" key={item.key}>
+          <div className={`metric ${item.earned < item.max ? "metric-incomplete" : ""}`} key={item.key}>
             <div><span>{METRIC_LABELS[item.key] || item.label}</span><strong>{item.earned}/{item.max}</strong></div>
             <div className="metric-track"><i style={{ width: `${(item.earned / item.max) * 100}%` }} /></div>
           </div>
         ))}
       </div>
       {!!rating?.tips?.length && (
-        <div className="rating-tip"><Icon name="spark" /><span>{rating.tips[0]}</span></div>
+        <div className="rating-guidance"><h4>Чего не хватает и как повысить рейтинг</h4>{rating.tips.map(tip => <div className="rating-tip" key={tip}><Icon name="spark" /><span>{tip}</span></div>)}</div>
       )}
     </section>
   );
@@ -424,7 +424,7 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
   );
 }
 
-function ProposalForm({ task, selectedTeam, teamTokens, notify, onDone }) {
+function ProposalForm({ task, selectedTeam, teamTokens, notify, onDone, onProfile }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   async function submit(event) {
@@ -439,17 +439,17 @@ function ProposalForm({ task, selectedTeam, teamTokens, notify, onDone }) {
     finally { setBusy(false); }
   }
   return <>
-    <button className="primary-button small" onClick={() => setOpen(!open)}>{selectedTeam ? "Предложить решение" : "Сначала создайте команду"}</button>
+    <div className="proposal-entry"><div><strong>{selectedTeam ? "Есть идея решения?" : "Чтобы откликнуться, нужен профиль команды"}</strong><p>{selectedTeam ? "Опишите подход, план и сроки. Решение принимает бизнес." : "Создайте команду в профиле, затем вернитесь в каталог и отправьте предложение."}</p></div><button className="primary-button small" aria-expanded={selectedTeam ? open : undefined} onClick={() => selectedTeam ? setOpen(!open) : onProfile()}>{selectedTeam ? (open ? "Скрыть форму" : "Предложить решение") : "Создать команду"}<Icon name="arrow" /></button></div>
     {open && selectedTeam && <form className="proposal-form" onSubmit={submit}>
-      <textarea name="idea" placeholder="Идея решения" required maxLength="2000" />
-      <textarea name="plan" placeholder="Короткий план работы" required maxLength="2000" />
-      <div className="form-row"><input name="deadline" placeholder="Срок, например 3 недели" required /><input name="link" type="url" placeholder="https://prototype.example" required /></div>
+      <label>Идея решения<textarea name="idea" placeholder="Как вы предлагаете решить задачу?" required maxLength="2000" /></label>
+      <label>План работы<textarea name="plan" placeholder="Основные этапы и ожидаемый результат" required maxLength="2000" /></label>
+      <div className="form-row"><label>Срок<input name="deadline" placeholder="Например, 3 недели" required /></label><label>Ссылка на прототип<input name="link" type="url" placeholder="https://prototype.example" required /></label></div>
       <button className="dark-button" disabled={busy}>{busy ? "Отправляем…" : "Отправить предложение"}</button>
     </form>}
   </>;
 }
 
-function Catalog({ role, selectedTeam, teamTokens, notify }) {
+function Catalog({ role, selectedTeam, teamTokens, notify, onProfile }) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ industry: "", level: "", sort: "rating" });
@@ -464,7 +464,7 @@ function Catalog({ role, selectedTeam, teamTokens, notify }) {
     finally { setLoading(false); }
   }
   useEffect(() => { load(); }, [filters.industry, filters.level, filters.sort]);
-  return <main className="page-shell">
+  return <main className="page-shell catalog-page">
     <header className="page-hero"><div><span className="eyebrow">ОТКРЫТЫЙ КАТАЛОГ</span><h1>Задачи, готовые к работе</h1><p>Низкий рейтинг ничего не скрывает — любая команда может откликнуться.</p></div><button className="outline-button" onClick={load}><Icon name="refresh" /> Обновить</button></header>
     <div className="filter-bar">
       <select value={filters.industry} onChange={(e) => setFilters({ ...filters, industry: e.target.value })}><option value="">Все отрасли</option>{Object.entries(INDUSTRIES).map(([v,l]) => <option value={v} key={v}>{l}</option>)}</select>
@@ -472,6 +472,7 @@ function Catalog({ role, selectedTeam, teamTokens, notify }) {
       <select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })}><option value="rating">Сначала высокий рейтинг</option><option value="date">Сначала новые</option></select>
       <span>{tasks.length} задач</span>
     </div>
+    <div className="catalog-guide"><Icon name="spark" /><div><strong>{role === "student" ? "Выберите задачу → изучите детали → предложите решение" : "Опубликованные задачи доступны всем командам"}</strong><p>{role === "student" ? "Рейтинг — полнота описания, а не ограничение для отклика. Можно работать с задачей любого уровня." : "Предложения по вашим задачам появятся в разделе «Мои задачи». Команду выбираете только вы."}</p></div>{role === "student" && !selectedTeam && <button className="outline-button" onClick={onProfile}>Создать команду <Icon name="arrow" /></button>}</div>
     {loading ? <div className="loading-grid">Загружаем каталог…</div> : !tasks.length ? <Empty title="Пока нет опубликованных задач" text="Создайте первую задачу в AI-конструкторе." /> : (
       <div className="task-grid">{tasks.map((task) => {
         const isOpen = expanded === task.id;
@@ -479,11 +480,10 @@ function Catalog({ role, selectedTeam, teamTokens, notify }) {
           <div className="task-top"><span className="industry-pill">{INDUSTRIES[task.industry] || task.industry}</span><ScoreRing compact rating={task.rating} /></div>
           <h3>{task.title}</h3><p>{task.need || task.context || "Описание уточняется"}</p>
           <div className="task-meta"><span style={{ color: LEVELS[task.rating?.level]?.[1] }}>● {LEVELS[task.rating?.level]?.[0]}</span><span>{new Date(task.created_at).toLocaleDateString("ru-RU")}</span></div>
-          <button className="details-button" onClick={() => setExpanded(isOpen ? "" : task.id)}>Подробнее <Icon name="arrow" /></button>
+          <button className="details-button" aria-expanded={isOpen} onClick={() => setExpanded(isOpen ? "" : task.id)}>{isOpen ? "Свернуть подробности" : "Открыть задачу"} <Icon name="arrow" /></button>
           {isOpen && <div className="task-details">
-            {FIELD_DEFS.filter(([key]) => key !== "title").map(([key,label]) => <div key={key}><strong>{label}</strong><span>{task[key] || "Не указано"}</span></div>)}
-            <RatingPanel rating={task.rating} />
-            {role === "student" && <ProposalForm task={task} selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} />}
+            <div className="task-facts"><h4>Описание и условия</h4>{FIELD_DEFS.filter(([key]) => key !== "title").map(([key,label]) => <div className="task-fact" key={key}><strong>{label}</strong><span className={!task[key] ? "fact-missing" : ""}>{task[key] || "Пока не указано бизнесом"}</span></div>)}</div>
+            <aside className="task-decision"><RatingPanel rating={task.rating} />{role === "student" && <ProposalForm task={task} selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} onProfile={onProfile} />}</aside>
           </div>}
         </article>;
       })}</div>
@@ -673,7 +673,7 @@ export default function App() {
       <div className="top-actions"><span className={`service ${service}`}><i />{service === "online" ? "Сервер работает" : service === "offline" ? "Нет связи" : "Проверяем"}</span><div className="role-switch"><button className={role==="business"?"active":""} onClick={()=>setRole("business")}>Бизнес</button><button className={role==="student"?"active":""} onClick={()=>setRole("student")}>Команда</button></div><button className="profile-mini" onClick={()=>setView("profile")}><span>{role === "business" ? (businessProfile.name || "Б").slice(0,1).toUpperCase() : (activeTeam?.name || "К").slice(0,1).toUpperCase()}</span><div><strong>{role === "business" ? businessProfile.name || "Ваш профиль" : activeTeam?.name || "Создать команду"}</strong><small>{role === "business" ? businessProfile.company || "Представитель бизнеса" : "Студенческая команда"}</small></div></button></div>
     </header>
     {view === "workspace" && role === "business" && <ChatWorkspace notify={notify} ownerTokens={ownerTokens} setOwnerTokens={setOwnerTokens} businessProfile={businessProfile} onPublished={()=>setView("offers")} />}
-    {view === "catalog" && <Catalog role={role} selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} />}
+    {view === "catalog" && <Catalog role={role} selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} onProfile={() => setView("profile")} />}
     {view === "offers" && <Offers role={role} ownerTokens={ownerTokens} selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} />}
     {view === "profile" && <Profile role={role} businessProfile={businessProfile} setBusinessProfile={setBusinessProfile} teams={teams} setTeams={setTeams} selectedTeam={selectedTeam} setSelectedTeam={setSelectedTeam} teamTokens={teamTokens} setTeamTokens={setTeamTokens} notify={notify} />}
     {view === "home" && <Landing onStart={() => { setRole("business"); setView("workspace"); }} onCatalog={() => { setRole("student"); setView("catalog"); }} />}
