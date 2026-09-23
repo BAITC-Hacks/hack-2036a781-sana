@@ -3,11 +3,18 @@ node_modules/
 .next/
 out/
 coverage/
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
 
 # Local environment and secrets
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
 
 # Editors and OS
 .idea/

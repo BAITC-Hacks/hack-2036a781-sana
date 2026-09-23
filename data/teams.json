@@ -1,0 +1,89 @@
+[
+  {
+    "id": "team_01",
+    "name": "EduFeedback",
+    "interests": [
+      "обратная связь",
+      "программирование",
+      "образование"
+    ],
+    "skills": [
+      "Python",
+      "педагогический дизайн"
+    ],
+    "technologies": [
+      "FastAPI",
+      "HTML"
+    ]
+  },
+  {
+    "id": "team_02",
+    "name": "CampusFlow",
+    "interests": [
+      "университет",
+      "календарь",
+      "логистика"
+    ],
+    "skills": [
+      "UX",
+      "JavaScript"
+    ],
+    "technologies": [
+      "HTML",
+      "CSS",
+      "JavaScript"
+    ]
+  },
+  {
+    "id": "team_03",
+    "name": "QazaqLingua",
+    "interests": [
+      "языки",
+      "казахский",
+      "обучение"
+    ],
+    "skills": [
+      "NLP",
+      "контент"
+    ],
+    "technologies": [
+      "Python",
+      "FastAPI"
+    ]
+  },
+  {
+    "id": "team_04",
+    "name": "CollegeKit",
+    "interests": [
+      "колледж",
+      "оборудование",
+      "учёт"
+    ],
+    "skills": [
+      "интерфейсы",
+      "аналитика"
+    ],
+    "technologies": [
+      "Python",
+      "SQLite"
+    ]
+  },
+  {
+    "id": "team_05",
+    "name": "SchoolProjects",
+    "interests": [
+      "школа",
+      "проектное обучение",
+      "поиск"
+    ],
+    "skills": [
+      "каталоги",
+      "UX"
+    ],
+    "technologies": [
+      "JavaScript",
+      "CSS"
+    ]
+  }
+]
+

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#050706">
+    <meta name="description" content="Sana — практические образовательные задачи, открытый каталог и ручной выбор команд бизнесом.">
+    <title>Sana — практические задачи</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#business" aria-label="Sana"><img class="brand-image" src="/static/assets/sana-logo-reference.png" alt="Sana"></a>
+      <div class="topbar-right">
+        <label class="role-picker"><span data-i18n="role">Роль</span><select id="role-switch" aria-label="Выбрать роль"><option value="business" data-i18n="roleBusiness">Бизнес</option><option value="student" data-i18n="roleStudent">Студенческая команда</option></select></label>
+        <label class="language-picker"><span data-i18n="language">Язык</span><select id="language-switch" aria-label="Язык интерфейса"><option value="ru">RU</option><option value="kk">ҚА</option><option value="en">EN</option></select></label>
+        <span id="service-status" class="service-status" data-state="loading" role="status" aria-live="polite" data-i18n="serviceChecking">Проверяем сервер</span>
+      </div>
+    </header>
+
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow" data-i18n="heroEyebrow">AI SANA · ОБРАЗОВАНИЕ</p>
+          <h1 data-i18n="heroTitle" data-i18n-html="true">Сильная задача<br>начинается с ясного описания.</h1>
+          <p class="hero-copy" data-i18n="heroCopy">Sana помогает учебным организациям подготовить практические задачи, а студенческим командам — предложить решения.</p>
+        </div>
+        <div class="hero-note"><span class="note-mark" aria-hidden="true">↗</span><span data-i18n="heroNote" data-i18n-html="true">Рейтинг подскажет,<br>что улучшить дальше.</span></div>
+      </section>
+
+      <nav class="tabs" aria-label="Разделы TaskForge">
+        <button class="tab active" data-view="business" type="button"><span data-i18n="navBusiness">Для бизнеса</span><small>01</small></button>
+        <button class="tab" data-view="catalog" type="button"><span data-i18n="navCatalog">Каталог задач</span><small>02</small></button>
+        <button class="tab" data-view="proposals" type="button" data-business-only><span data-i18n="navMyTasks">Мои задачи</span><small>03</small></button>
+      </nav>
+
+      <section id="view-business" class="view active">
+        <div class="section-heading">
+          <div><p class="eyebrow" data-i18n="businessStep">01 / СОЗДАНИЕ ЗАДАЧИ</p><h2 data-i18n="businessHeading">Расскажите, что нужно решить</h2></div>
+          <button id="load-demo" class="button button-quiet" type="button"><span data-i18n="demoButton">Загрузить пример</span><span aria-hidden="true">↗</span></button>
+        </div>
+        <div class="builder-grid">
+          <div class="builder-main">
+            <label class="field-label" for="draft" data-i18n="draftLabel">Черновик задачи</label>
+            <textarea id="draft" class="input draft-input" maxlength="4000" data-i18n-placeholder="draftPlaceholder" placeholder="Например: ..."></textarea>
+            <div class="field-row">
+              <label class="field-label" for="industry" data-i18n="industry">Отрасль</label>
+              <select id="industry" class="input select-input">
+                <option value="online_school" data-i18n="industryOnlineSchool">Онлайн-школа</option>
+                <option value="university" data-i18n="industryUniversity">Университет</option>
+                <option value="language_center" data-i18n="industryLanguage">Языковой центр</option>
+                <option value="college" data-i18n="industryCollege">Колледж</option>
+                <option value="school" data-i18n="industrySchool">Школа</option>
+              </select>
+            </div>
+            <div class="button-row">
+              <button id="analyze" class="button button-primary" type="button"><span data-i18n="analyze">Найти, чего не хватает</span><span aria-hidden="true">→</span></button>
+              <span class="helper-text" data-i18n="analyzeHelper">AI не заполнит неизвестные факты за вас</span>
+            </div>
+            <div id="analysis" class="analysis-panel hidden">
+              <div class="subheading"><div><p class="eyebrow" data-i18n="analysisStep">ШАГ 1 / УТОЧНЕНИЕ</p><h3 data-i18n="analysisHeading">Ответьте на вопросы</h3></div><span id="source-badge" class="source-badge"></span></div>
+              <div id="questions" class="questions-list"></div>
+              <button id="build-card" class="button button-dark" type="button"><span data-i18n="buildCard">Собрать карточку</span><span aria-hidden="true">→</span></button>
+            </div>
+          </div>
+          <aside class="builder-aside">
+            <div class="aside-card">
+              <span class="aside-icon" aria-hidden="true">✳</span>
+              <p class="aside-title" data-i18n="asideTitle">Только подтверждённые факты</p>
+              <p data-i18n="asideCopy">Неизвестные сведения останутся пустыми. Проверьте карточку и подтвердите её перед публикацией.</p>
+            </div>
+            <div class="aside-steps"><span>1</span><span class="step-line"></span><span>2</span><span class="step-line"></span><span>3</span></div>
+            <p class="aside-caption" data-i18n="asideSteps">Черновик · уточнение · публикация</p>
+          </aside>
+        </div>
+
+        <section id="card-workspace" class="card-workspace hidden">
+          <div class="section-heading card-heading">
+            <div><p class="eyebrow" data-i18n="cardStep">ШАГ 2 / ПРОВЕРКА</p><h2 data-i18n="cardHeading">Карточка практической задачи</h2><p class="section-copy" data-i18n="cardCopy">Проверьте и отредактируйте каждое поле. Рейтинг пересчитывается автоматически.</p></div>
+            <span class="human-check" data-i18n="humanCheck">● Требует вашего подтверждения</span>
+          </div>
+          <div class="card-layout">
+            <div class="card-form-panel">
+              <div id="card-fields" class="card-fields"></div>
+              <div class="publish-row">
+                <button id="publish" class="button button-primary" type="button"><span data-i18n="publish">Подтвердить и опубликовать</span><span aria-hidden="true">→</span></button>
+                <button id="cancel-edit" class="button button-quiet hidden" type="button" data-i18n="cancelEdit">Отменить редактирование</button>
+                <p id="publish-hint" class="helper-text" data-i18n="publishHint">Публикация произойдёт только после нажатия кнопки.</p>
+              </div>
+            </div>
+            <aside id="rating-panel" class="rating-panel" aria-live="polite"></aside>
+          </div>
+        </section>
+      </section>
+
+      <section id="view-catalog" class="view hidden">
+        <div class="section-heading">
+          <div><p class="eyebrow">02 / Открытый пул</p><h2>Выберите задачу</h2><p class="section-copy">Все опубликованные задачи доступны командам. Рейтинг влияет на порядок, но не закрывает отклик.</p></div>
+        </div>
+        <div class="filters">
+          <label><span>Тема</span><select id="filter-industry" class="input"><option value="">Все темы</option></select></label>
+          <label><span>Готовность</span><select id="filter-level" class="input"><option value="">Любой уровень</option><option value="draft">Черновик</option><option value="working">Рабочая</option><option value="ready">Готовая</option><option value="priority">Приоритетная</option></select></label>
+          <label><span>Сортировка</span><select id="filter-sort" class="input"><option value="rating">Сначала высокий рейтинг</option><option value="date">Сначала новые</option></select></label>
+          <button id="refresh-catalog" class="button button-quiet" type="button">Обновить ↻</button>
+        </div>
+        <div id="team-toolbar" class="team-toolbar hidden">
+          <label for="active-team">Моя команда</label>
+          <select id="active-team" class="input" aria-label="Выбрать студенческую команду"></select>
+        </div>
+        <section id="student-progress" class="student-progress hidden">
+          <div class="section-heading"><div><p class="eyebrow">После выбора бизнесом</p><h2>Прогресс моей команды</h2><p class="section-copy">Отправьте конкретный результат этапа и ссылку-доказательство. Баллы появятся только после подтверждения бизнеса.</p></div></div>
+          <div id="student-progress-list" class="proposal-list"></div>
+        </section>
+        <div id="catalog-list" class="task-list"></div>
+      </section>
+
+      <section id="view-proposals" class="view hidden">
+        <div class="section-heading">
+          <div><p class="eyebrow">03 / Пространство бизнеса</p><h2>Мои опубликованные задачи</h2><p class="section-copy">Все задачи остаются здесь, даже если пока нет предложений. Сравните отклики и вручную выберите одну, несколько или ни одной команды.</p></div>
+          <button id="refresh-proposals" class="button button-quiet" type="button">Обновить ↻</button>
+        </div>
+        <section id="progress-board" class="progress-board" aria-live="polite"></section>
+        <div id="proposal-list" class="proposal-list"></div>
+      </section>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+      <footer class="footer"><span>TaskForge</span><span>Задачу выбирает бизнес · AI не придумывает факты</span></footer>
+    </main>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
+

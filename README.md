@@ -1,8 +1,8 @@
-# EduQuest AI
+# TaskForge
 
-EduQuest AI — MVP образовательной платформы, которая превращает сырой запрос бизнеса в понятную практическую задачу для студенческих команд. Система задаёт уточняющие вопросы, формирует редактируемую карточку, рассчитывает рейтинг готовности задачи и публикует её в общем каталоге. Студенты отправляют предложения, а представитель бизнеса вручную принимает или отклоняет их.
+TaskForge — работающий MVP для образовательного кейса AI Sana. Платформа превращает сырой запрос бизнеса в понятную практическую задачу для студенческих команд, рассчитывает рейтинг готовности, публикует задачу в открытом каталоге и принимает предложения команд.
 
-> Статус: подготовлена архитектура и командный план. Функции ниже являются целевым объёмом MVP для хакатона.
+> Статус: основной сквозной сценарий реализован на FastAPI, Python и обычном HTML/CSS/JavaScript. Приложение работает с локальным AI-fallback без API-ключа.
 
 ## Главный сценарий
 
@@ -58,92 +58,71 @@ EduQuest AI — MVP образовательной платформы, кото�
 
 ## Технологии
 
-- Next.js (App Router), React, TypeScript;
-- Tailwind CSS;
-- Route Handlers для API;
-- Zod для проверки входных данных;
-- Vitest для тестирования формулы рейтинга;
-- in-memory repository и синтетические seed-данные для надёжной локальной демонстрации;
-- AI-адаптер с режимами `mock` и внешним провайдером через переменные окружения.
-
-Выбор Next.js позволяет держать интерфейс и API в одном репозитории. Для пятичасового хакатона база данных не обязательна: приоритет — устойчивый сквозной сценарий.
+- Python 3.11+ и FastAPI;
+- Uvicorn;
+- HTML, CSS и JavaScript без CDN и сборщика;
+- JSON-файлы как локальное хранилище демо-данных;
+- OpenAI API при наличии ключа и детерминированный fallback без сети;
+- pytest для проверки API и формулы рейтинга.
 
 ## Предлагаемая структура
 
 ```text
 .
 ├── app/
-│   ├── business/
-│   │   ├── new/page.tsx
-│   │   └── tasks/[id]/page.tsx
-│   ├── catalog/
-│   │   ├── page.tsx
-│   │   └── [id]/page.tsx
-│   ├── api/
-│   │   ├── analyze/route.ts
-│   │   ├── tasks/route.ts
-│   │   ├── tasks/[id]/route.ts
-│   │   ├── tasks/[id]/proposals/route.ts
-│   │   └── proposals/[id]/route.ts
-│   ├── layout.tsx
-│   └── page.tsx
-├── components/
-│   ├── business/
-│   ├── catalog/
-│   └── shared/
-├── lib/
-│   ├── ai/
-│   │   ├── analyze-task.ts
-│   │   ├── mock-provider.ts
-│   │   └── types.ts
-│   ├── repositories/task-repository.ts
-│   ├── rating.ts
-│   └── validation.ts
-├── data/seed.ts
-├── types/index.ts
-├── tests/rating.test.ts
+│   ├── main.py                 # FastAPI и HTTP API
+│   └── static/
+│       ├── index.html          # единый интерфейс
+│       ├── app.js              # бизнес-, каталог- и proposal-сценарии
+│       ├── i18n.js             # RU / KK / EN
+│       ├── styles.css
+│       └── assets/
+├── core/
+│   ├── ai.py                   # AI и безопасный fallback
+│   ├── prompts.py              # показываемые на защите prompts
+│   ├── rating.py               # рейтинг 0–100
+│   └── store.py                # JSON-хранилище
+├── data/                       # синтетические задачи, команды и отклики
+├── tests/                      # API и unit-тесты рейтинга
 ├── docs/HACKATHON_PLAN.md
 ├── AGENTS.md
+├── requirements.txt
 └── README.md
 ```
 
 ## Запуск
 
-Требования: Node.js 20+ и pnpm 9+.
+Требования: Python 3.11+ и Git.
 
 ```bash
-pnpm install
-cp .env.example .env.local
-pnpm dev
+python -m venv .venv
+# Windows PowerShell:
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+Copy-Item .env.example .env
+python -m uvicorn app.main:app --port 8000
 ```
 
-На Windows PowerShell вместо `cp`:
-
-```powershell
-Copy-Item .env.example .env.local
-```
-
-Открыть [http://localhost:3000](http://localhost:3000).
+Открыть [http://localhost:8000](http://localhost:8000). Реальный AI включается через `OPENAI_API_KEY`; для гарантированной локальной демонстрации установите `AI_MODE=fallback`.
 
 Проверки перед объединением изменений:
 
 ```bash
-pnpm lint
-pnpm test
-pnpm build
+python -m pytest -q
+python -m compileall -q app core tests
 ```
 
-По умолчанию приложение должно работать с `AI_PROVIDER=mock`. Подключение внешнего провайдера не должно быть условием запуска демонстрации.
+Подключение внешнего провайдера не является условием запуска демонстрации.
 
 ## Распределение команды
 
 | Участник | Зона ответственности | Основные файлы |
 |---|---|---|
-| 1 — Business UX | ввод, вопросы, редактирование карточки, экран рейтинга | `app/business/**`, `components/business/**` |
-| 2 — Core/API | типы, рейтинг, AI-адаптер, validation, API, seed | `lib/**`, `types/**`, `data/**`, `app/api/**`, `tests/**` |
-| 3 — Catalog UX | каталог, фильтры, карточка задачи, отклик, выбор бизнеса | `app/catalog/**`, `components/catalog/**`, `components/shared/**` |
+| 1 — AI/Core | AI-анализ, prompts, fallback и API | `core/ai.py`, `core/prompts.py`, AI endpoints в `app/main.py` |
+| 2 — UI | бизнес-сценарий, каталог, отклики, локализация | `app/static/**` |
+| 3 — Rating/QA | рейтинг, JSON-хранилище, данные и тесты | `core/rating.py`, `core/store.py`, `data/**`, `tests/**` |
 
-Общие файлы (`package.json`, layout, глобальные стили, README) изменяет только назначенный интегратор либо участник после согласования в командном чате.
+Общие файлы (`app/main.py`, README и API-контракт) изменяет только назначенный интегратор либо участник после согласования в командном чате.
 
 ## Совместная работа через GitHub
 

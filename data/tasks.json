@@ -1,0 +1,404 @@
+[
+  {
+    "id": "t_001",
+    "title": "Кері байланыс Python үй жұмысына",
+    "industry": "online_school",
+    "context": "В онлайн-школе учителя вручную проверяют домашние работы по Python и пишут ученикам пояснения.",
+    "need": "Нужно сократить повторяющуюся часть проверки, сохранив окончательное решение за преподавателем.",
+    "users": "",
+    "data_materials": "",
+    "constraints": "",
+    "expected_result": "",
+    "success_criteria": "",
+    "contact": "",
+    "interaction_format": "",
+    "status": "published",
+    "created_at": "2026-09-23T09:00:00",
+    "rating": {
+      "score": 20,
+      "level": "draft",
+      "breakdown": [
+        {
+          "key": "context_need",
+          "label": "Контекст и потребность",
+          "earned": 20,
+          "max": 20,
+          "filled": true
+        },
+        {
+          "key": "data_materials",
+          "label": "Данные и материалы",
+          "earned": 0,
+          "max": 20,
+          "filled": false
+        },
+        {
+          "key": "expected_result",
+          "label": "Ожидаемый результат",
+          "earned": 0,
+          "max": 15,
+          "filled": false
+        },
+        {
+          "key": "success_criteria",
+          "label": "Критерии успеха",
+          "earned": 0,
+          "max": 15,
+          "filled": false
+        },
+        {
+          "key": "constraints",
+          "label": "Ограничения",
+          "earned": 0,
+          "max": 10,
+          "filled": false
+        },
+        {
+          "key": "users",
+          "label": "Пользователи",
+          "earned": 0,
+          "max": 10,
+          "filled": false
+        },
+        {
+          "key": "business_link",
+          "label": "Связь с бизнесом",
+          "earned": 0,
+          "max": 10,
+          "filled": false
+        }
+      ],
+      "missing": [
+        "data_materials",
+        "expected_result",
+        "success_criteria",
+        "constraints",
+        "users",
+        "business_link"
+      ],
+      "tips": [
+        "Добавьте доступные данные и материалы — это +20 баллов",
+        "Добавьте ожидаемый результат — это +15 баллов",
+        "Добавьте измеримые критерии успеха — это +15 баллов",
+        "Добавьте сроки, технологии и ограничения — это +10 баллов",
+        "Добавьте пользователей решения — это +10 баллов",
+        "Добавьте контакт и формат взаимодействия — это +10 баллов"
+      ]
+    }
+  },
+  {
+    "id": "t_002",
+    "title": "Расписание учебной лаборатории",
+    "industry": "university",
+    "context": "Несколько курсов используют одну учебную лабораторию и однотипные комплекты оборудования.",
+    "need": "Нужно видеть свободные временные слоты, чтобы преподаватели не назначали занятия одновременно.",
+    "users": "Преподаватели курсов и координатор лаборатории.",
+    "data_materials": "Синтетическое расписание занятий и перечень учебного оборудования.",
+    "constraints": "",
+    "expected_result": "Прототип календаря доступных лабораторных слотов.",
+    "success_criteria": "",
+    "contact": "",
+    "interaction_format": "",
+    "status": "published",
+    "created_at": "2026-09-23T09:00:00",
+    "rating": {
+      "score": 65,
+      "level": "working",
+      "breakdown": [
+        {
+          "key": "context_need",
+          "label": "Контекст и потребность",
+          "earned": 20,
+          "max": 20,
+          "filled": true
+        },
+        {
+          "key": "data_materials",
+          "label": "Данные и материалы",
+          "earned": 20,
+          "max": 20,
+          "filled": true
+        },
+        {
+          "key": "expected_result",
+          "label": "Ожидаемый результат",
+          "earned": 15,
+          "max": 15,
+          "filled": true
+        },
+        {
+          "key": "success_criteria",
+          "label": "Критерии успеха",
+          "earned": 0,
+          "max": 15,
+          "filled": false
+        },
+        {
+          "key": "constraints",
+          "label": "Ограничения",
+          "earned": 0,
+          "max": 10,
+          "filled": false
+        },
+        {
+          "key": "users",
+          "label": "Пользователи",
+          "earned": 10,
+          "max": 10,
+          "filled": true
+        },
+        {
+          "key": "business_link",
+          "label": "Связь с бизнесом",
+          "earned": 0,
+          "max": 10,
+          "filled": false
+        }
+      ],
+      "missing": [
+        "success_criteria",
+        "constraints",
+        "business_link"
+      ],
+      "tips": [
+        "Добавьте измеримые критерии успеха — это +15 баллов",
+        "Добавьте сроки, технологии и ограничения — это +10 баллов",
+        "Добавьте контакт и формат взаимодействия — это +10 баллов"
+      ]
+    }
+  },
+  {
+    "id": "t_003",
+    "title": "Упражнения для разговорной практики",
+    "industry": "language_center",
+    "context": "Языковой центр проводит разговорные занятия для студентов с разными уровнями подготовки.",
+    "need": "Преподавателям нужно быстро находить упражнения, подходящие теме и уровню группы.",
+    "users": "Преподаватели разговорного клуба и методисты языкового центра.",
+    "data_materials": "Утверждённые учебные темы, синтетические карточки упражнений и шкала уровней.",
+    "constraints": "Материалы должны использовать только одобренный словарь и не собирать персональные данные учащихся.",
+    "expected_result": "Веб-каталог упражнений с поиском по языку, теме и уровню сложности.",
+    "success_criteria": "В тесте преподаватель находит подходящее упражнение менее чем за две минуты в девяти из десяти сценариев.",
+    "contact": "Ответственный методист; демонстрационные контактные данные синтетические.",
+    "interaction_format": "Короткая еженедельная встреча и проверка материалов методистом перед публикацией.",
+    "status": "published",
+    "created_at": "2026-09-23T09:00:00",
+    "rating": {
+      "score": 100,
+      "level": "priority",
+      "breakdown": [
+        {
+          "key": "context_need",
+          "label": "Контекст и потребность",
+          "earned": 20,
+          "max": 20,
+          "filled": true
+        },
+        {
+          "key": "data_materials",
+          "label": "Данные и материалы",
+          "earned": 20,
+          "max": 20,
+          "filled": true
+        },
+        {
+          "key": "expected_result",
+          "label": "Ожидаемый результат",
+          "earned": 15,
+          "max": 15,
+          "filled": true
+        },
+        {
+          "key": "success_criteria",
+          "label": "Критерии успеха",
+          "earned": 15,
+          "max": 15,
+          "filled": true
+        },
+        {
+          "key": "constraints",
+          "label": "Ограничения",
+          "earned": 10,
+          "max": 10,
+          "filled": true
+        },
+        {
+          "key": "users",
+          "label": "Пользователи",
+          "earned": 10,
+          "max": 10,
+          "filled": true
+        },
+        {
+          "key": "business_link",
+          "label": "Связь с бизнесом",
+          "earned": 10,
+          "max": 10,
+          "filled": true
+        }
+      ],
+      "missing": [],
+      "tips": []
+    }
+  },
+  {
+    "id": "t_004",
+    "title": "Журнал выдачи оборудования в колледже",
+    "industry": "college",
+    "context": "Студенты колледжа используют учебное оборудование на практических занятиях.",
+    "need": "Координатору нужно видеть, какое оборудование выдано и что свободно.",
+    "users": "Координатор учебной мастерской и преподаватели практики.",
+    "data_materials": "",
+    "constraints": "",
+    "expected_result": "Простой журнал выдачи и возврата с текущим статусом учебных комплектов.",
+    "success_criteria": "",
+    "contact": "",
+    "interaction_format": "",
+    "status": "published",
+    "created_at": "2026-09-23T09:00:00",
+    "rating": {
+      "score": 45,
+      "level": "working",
+      "breakdown": [
+        {
+          "key": "context_need",
+          "label": "Контекст и потребность",
+          "earned": 20,
+          "max": 20,
+          "filled": true
+        },
+        {
+          "key": "data_materials",
+          "label": "Данные и материалы",
+          "earned": 0,
+          "max": 20,
+          "filled": false
+        },
+        {
+          "key": "expected_result",
+          "label": "Ожидаемый результат",
+          "earned": 15,
+          "max": 15,
+          "filled": true
+        },
+        {
+          "key": "success_criteria",
+          "label": "Критерии успеха",
+          "earned": 0,
+          "max": 15,
+          "filled": false
+        },
+        {
+          "key": "constraints",
+          "label": "Ограничения",
+          "earned": 0,
+          "max": 10,
+          "filled": false
+        },
+        {
+          "key": "users",
+          "label": "Пользователи",
+          "earned": 10,
+          "max": 10,
+          "filled": true
+        },
+        {
+          "key": "business_link",
+          "label": "Связь с бизнесом",
+          "earned": 0,
+          "max": 10,
+          "filled": false
+        }
+      ],
+      "missing": [
+        "data_materials",
+        "success_criteria",
+        "constraints",
+        "business_link"
+      ],
+      "tips": [
+        "Добавьте доступные данные и материалы — это +20 баллов",
+        "Добавьте измеримые критерии успеха — это +15 баллов",
+        "Добавьте сроки, технологии и ограничения — это +10 баллов",
+        "Добавьте контакт и формат взаимодействия — это +10 баллов"
+      ]
+    }
+  },
+  {
+    "id": "t_005",
+    "title": "Подборка материалов для проектных занятий",
+    "industry": "school",
+    "context": "Учителя школы готовят проектные занятия для нескольких возрастных групп и ищут материалы в разных папках.",
+    "need": "Нужен единый каталог материалов по теме и возрасту класса.",
+    "users": "Учителя проектных занятий и школьный методист.",
+    "data_materials": "Подборка материалов и планов занятий, разрешённых школой для использования в прототипе.",
+    "constraints": "Нельзя публиковать данные учеников; материалы должны быть доступны учителям без отдельной установки программ.",
+    "expected_result": "Прототип каталога с поиском и фильтрами по теме и возрастной группе.",
+    "success_criteria": "",
+    "contact": "Методист школы; в демо используется вымышленный контакт.",
+    "interaction_format": "Еженедельный просмотр прототипа и текстовая обратная связь от методиста.",
+    "status": "published",
+    "created_at": "2026-09-23T09:00:00",
+    "rating": {
+      "score": 85,
+      "level": "ready",
+      "breakdown": [
+        {
+          "key": "context_need",
+          "label": "Контекст и потребность",
+          "earned": 20,
+          "max": 20,
+          "filled": true
+        },
+        {
+          "key": "data_materials",
+          "label": "Данные и материалы",
+          "earned": 20,
+          "max": 20,
+          "filled": true
+        },
+        {
+          "key": "expected_result",
+          "label": "Ожидаемый результат",
+          "earned": 15,
+          "max": 15,
+          "filled": true
+        },
+        {
+          "key": "success_criteria",
+          "label": "Критерии успеха",
+          "earned": 0,
+          "max": 15,
+          "filled": false
+        },
+        {
+          "key": "constraints",
+          "label": "Ограничения",
+          "earned": 10,
+          "max": 10,
+          "filled": true
+        },
+        {
+          "key": "users",
+          "label": "Пользователи",
+          "earned": 10,
+          "max": 10,
+          "filled": true
+        },
+        {
+          "key": "business_link",
+          "label": "Связь с бизнесом",
+          "earned": 10,
+          "max": 10,
+          "filled": true
+        }
+      ],
+      "missing": [
+        "success_criteria"
+      ],
+      "tips": [
+        "Добавьте измеримые критерии успеха — это +15 баллов"
+      ]
+    }
+  }
+]
+
