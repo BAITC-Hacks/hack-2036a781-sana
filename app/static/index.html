@@ -12,8 +12,8 @@
     <header class="topbar">
       <a class="brand" href="#business" aria-label="Sana"><img class="brand-image" src="/static/assets/sana-logo-reference.png" alt="Sana"></a>
       <div class="topbar-right">
-        <label class="role-picker"><span data-i18n="role">Роль</span><select id="role-switch" aria-label="Выбрать роль"><option value="business" data-i18n="roleBusiness">Бизнес</option><option value="student" data-i18n="roleStudent">Студенческая команда</option></select></label>
-        <label class="language-picker"><span data-i18n="language">Язык</span><select id="language-switch" aria-label="Язык интерфейса"><option value="ru">RU</option><option value="kk">ҚА</option><option value="en">EN</option></select></label>
+        <label class="role-picker"><span data-i18n="role">Роль</span><select id="role-switch" aria-label="Выбрать роль" data-i18n-aria-label="roleSwitcher"><option value="business" data-i18n="roleBusiness">Бизнес</option><option value="student" data-i18n="roleStudent">Студенческая команда</option></select></label>
+        <label class="language-picker"><span data-i18n="language">Язык</span><select id="language-switch" aria-label="Язык интерфейса" data-i18n-aria-label="language"><option value="ru">RU</option><option value="kk">KZ</option><option value="en">EN</option></select></label>
         <span id="service-status" class="service-status" data-state="loading" role="status" aria-live="polite" data-i18n="serviceChecking">Проверяем сервер</span>
       </div>
     </header>
@@ -28,7 +28,7 @@
         <div class="hero-note"><span class="note-mark" aria-hidden="true">↗</span><span data-i18n="heroNote" data-i18n-html="true">Рейтинг подскажет,<br>что улучшить дальше.</span></div>
       </section>
 
-      <nav class="tabs" aria-label="Разделы TaskForge">
+      <nav class="tabs" aria-label="Разделы Sana" data-i18n-aria-label="navLabel">
         <button class="tab active" data-view="business" type="button"><span data-i18n="navBusiness">Для бизнеса</span><small>01</small></button>
         <button class="tab" data-view="catalog" type="button"><span data-i18n="navCatalog">Каталог задач</span><small>02</small></button>
         <button class="tab" data-view="proposals" type="button" data-business-only><span data-i18n="navMyTasks">Мои задачи</span><small>03</small></button>
@@ -95,20 +95,20 @@
 
       <section id="view-catalog" class="view hidden">
         <div class="section-heading">
-          <div><p class="eyebrow">02 / Открытый пул</p><h2>Выберите задачу</h2><p class="section-copy">Все опубликованные задачи доступны командам. Рейтинг влияет на порядок, но не закрывает отклик.</p></div>
+          <div><p class="eyebrow" data-i18n="catalogStep">02 / ОТКРЫТЫЙ КАТАЛОГ</p><h2 data-i18n="catalogHeading">Выберите задачу</h2><p class="section-copy" data-i18n="catalogCopy">Просматривайте все опубликованные задачи. Низкий рейтинг не закрывает возможность откликнуться.</p></div>
         </div>
         <div class="filters">
-          <label><span>Тема</span><select id="filter-industry" class="input"><option value="">Все темы</option></select></label>
-          <label><span>Готовность</span><select id="filter-level" class="input"><option value="">Любой уровень</option><option value="draft">Черновик</option><option value="working">Рабочая</option><option value="ready">Готовая</option><option value="priority">Приоритетная</option></select></label>
-          <label><span>Сортировка</span><select id="filter-sort" class="input"><option value="rating">Сначала высокий рейтинг</option><option value="date">Сначала новые</option></select></label>
-          <button id="refresh-catalog" class="button button-quiet" type="button">Обновить ↻</button>
+          <label><span data-i18n="filterIndustry">Отрасль</span><select id="filter-industry" class="input"><option value="" data-i18n="filterAllIndustries">Все отрасли</option></select></label>
+          <label><span data-i18n="filterLevel">Готовность</span><select id="filter-level" class="input"><option value="" data-i18n="filterAnyLevel">Любая готовность</option><option value="draft" data-i18n="levelDraft">Требует уточнения</option><option value="working" data-i18n="levelWorking">Рабочая</option><option value="ready" data-i18n="levelReady">Готовая</option><option value="priority" data-i18n="levelPriority">Приоритетная</option></select></label>
+          <label><span data-i18n="sort">Сортировка</span><select id="filter-sort" class="input"><option value="rating" data-i18n="sortRating">Сначала высокий рейтинг</option><option value="date" data-i18n="sortDate">Сначала новые</option></select></label>
+          <button id="refresh-catalog" class="button button-quiet" type="button"><span data-i18n="refresh">Обновить</span> ↻</button>
         </div>
         <div id="team-toolbar" class="team-toolbar hidden">
-          <label for="active-team">Моя команда</label>
-          <select id="active-team" class="input" aria-label="Выбрать студенческую команду"></select>
+          <label for="active-team" data-i18n="teamPicker">Моя команда</label>
+          <select id="active-team" class="input" aria-label="Моя команда" data-i18n-aria-label="teamPicker"></select>
         </div>
         <section id="student-progress" class="student-progress hidden">
-          <div class="section-heading"><div><p class="eyebrow">После выбора бизнесом</p><h2>Прогресс моей команды</h2><p class="section-copy">Отправьте конкретный результат этапа и ссылку-доказательство. Баллы появятся только после подтверждения бизнеса.</p></div></div>
+          <div class="section-heading"><div><p class="eyebrow" data-i18n="selectedByBusiness">ПОСЛЕ ВЫБОРА БИЗНЕСОМ</p><h2 data-i18n="teamProgressHeading">Прогресс моей команды</h2><p class="section-copy" data-i18n="teamProgressCopy">Отправьте конкретный результат этапа и ссылку-доказательство. Баллы появятся только после подтверждения бизнеса.</p></div></div>
           <div id="student-progress-list" class="proposal-list"></div>
         </section>
         <div id="catalog-list" class="task-list"></div>
@@ -116,17 +116,17 @@
 
       <section id="view-proposals" class="view hidden">
         <div class="section-heading">
-          <div><p class="eyebrow">03 / Пространство бизнеса</p><h2>Мои опубликованные задачи</h2><p class="section-copy">Все задачи остаются здесь, даже если пока нет предложений. Сравните отклики и вручную выберите одну, несколько или ни одной команды.</p></div>
-          <button id="refresh-proposals" class="button button-quiet" type="button">Обновить ↻</button>
+          <div><p class="eyebrow" data-i18n="myTasksStep">03 / ПРОСТРАНСТВО БИЗНЕСА</p><h2 data-i18n="myTasksHeading">Мои опубликованные задачи</h2><p class="section-copy" data-i18n="myTasksCopy">Все ваши задачи, включая те, на которые ещё никто не откликнулся. Сравните предложения и выберите команды вручную.</p></div>
+          <button id="refresh-proposals" class="button button-quiet" type="button"><span data-i18n="refresh">Обновить</span> ↻</button>
         </div>
         <section id="progress-board" class="progress-board" aria-live="polite"></section>
         <div id="proposal-list" class="proposal-list"></div>
       </section>
 
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
-      <footer class="footer"><span>TaskForge</span><span>Задачу выбирает бизнес · AI не придумывает факты</span></footer>
+      <footer class="footer"><span>Sana</span><span data-i18n="footerPromise">Прозрачный рейтинг · Бизнес принимает решение · Факты не выдумываются</span></footer>
     </main>
+    <script src="/static/i18n.js" defer></script>
     <script src="/static/app.js" defer></script>
   </body>
 </html>
-

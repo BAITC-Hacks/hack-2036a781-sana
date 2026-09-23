@@ -1,27 +1,18 @@
-# Dependencies and builds
-node_modules/
-.next/
-out/
-coverage/
+.env
+.env.local
+*.key
+*.pem
+
 .venv/
 venv/
 __pycache__/
-.pytest_cache/
 *.py[cod]
+.pytest_cache/
 
-# Local environment and secrets
-.env
-.env.local
-.env.*.local
-.env.*
-!.env.example
-
-# Editors and OS
-.idea/
 .vscode/
+.idea/
 .DS_Store
 Thumbs.db
 
-# Local scratch files
-tmp/
 *.log
+tmp/

@@ -42,6 +42,28 @@ FALLBACK_QUESTIONS = {
     "business_link": "Кто будет контактным лицом и как команда сможет получать обратную связь?",
 }
 
+FALLBACK_QUESTIONS_I18N = {
+    "kk": {
+        "context_need": "Қазір не болып жатыр және нақты нені өзгерткіңіз келеді?",
+        "data_materials": "Қандай деректерді, мысалдарды немесе материалдарды бере аласыз?",
+        "expected_result": "Студенттер командасынан қандай нақты нәтиже күтесіз?",
+        "success_criteria": "Нәтиженің сәйкес екенін қандай өлшенетін белгілерден білесіз?",
+        "constraints": "Қандай мерзім, технология, қолжетімділік немесе басқа шектеу бар?",
+        "users": "Ұсынылған шешімді кім қолданады?",
+        "business_link": "Байланыс тұлғасы кім және команда кері байланысты қалай алады?",
+    },
+    "en": {
+        "context_need": "What is happening now, and what exactly would you like to change?",
+        "data_materials": "What data, examples, or materials can you provide?",
+        "expected_result": "What specific result do you expect from the student team?",
+        "success_criteria": "Which measurable signs will show that the result meets your needs?",
+        "constraints": "Which deadlines, technologies, access requirements, or other constraints apply?",
+        "users": "Who will use the proposed solution?",
+        "business_link": "Who is the contact person, and how can the team receive feedback?",
+    },
+}
+LANGUAGE_NAMES = {"ru": "Russian", "kk": "Kazakh", "en": "English"}
+
 
 def _error(message: str) -> dict:
     return {"error": {"code": "invalid_input", "message": message}}
@@ -97,32 +119,34 @@ def _baseline_missing(draft: str) -> list[str]:
     return missing_fields(card)
 
 
-def _fallback_questions(draft: str) -> dict:
+def _fallback_questions(draft: str, language: str = "ru") -> dict:
     missing = _baseline_missing(draft)
+    questions_by_key = FALLBACK_QUESTIONS_I18N.get(language, FALLBACK_QUESTIONS)
     ordered_keys = [metric[0] for metric in METRICS if metric[0] in missing]
     questions = [
-        {"key": key, "question": FALLBACK_QUESTIONS[key]}
+        {"key": key, "question": questions_by_key[key]}
         for key in ordered_keys[:5]
     ]
     if len(questions) < 3:
         for key in ("data_materials", "expected_result", "success_criteria"):
             if all(item["key"] != key for item in questions):
-                questions.append({"key": key, "question": FALLBACK_QUESTIONS[key]})
+                questions.append({"key": key, "question": questions_by_key[key]})
             if len(questions) == 3:
                 break
     return {"questions": questions, "missing": missing, "source": "fallback"}
 
 
-def analyze_draft(draft: str, industry: str = "") -> dict:
+def analyze_draft(draft: str, industry: str = "", language: str = "ru") -> dict:
+    language = language if language in LANGUAGE_NAMES else "ru"
     if not _valid_draft(draft):
         return _error(f"Введите описание длиной до {MAX_DRAFT_LENGTH} символов.")
     if not isinstance(industry, str) or len(industry) > 80:
         return _error("Тема должна быть текстом длиной до 80 символов.")
 
-    fallback = _fallback_questions(draft.strip())
+    fallback = _fallback_questions(draft.strip(), language)
     result = _ask_model(
-        ANALYZE_SYSTEM_PROMPT,
-        {"draft": draft.strip(), "industry": industry.strip()},
+        ANALYZE_SYSTEM_PROMPT + f"\nWrite all generated questions in {LANGUAGE_NAMES[language]}.",
+        {"draft": draft.strip(), "industry": industry.strip(), "language": language},
     )
     if result is None:
         return fallback
@@ -208,7 +232,8 @@ def _verified_fields(result: dict, source_text: str) -> dict:
     return verified
 
 
-def build_card(draft: str, answers: list[dict]) -> dict:
+def build_card(draft: str, answers: list[dict], language: str = "ru") -> dict:
+    language = language if language in LANGUAGE_NAMES else "ru"
     if not _valid_draft(draft):
         return _error(f"Введите описание длиной до {MAX_DRAFT_LENGTH} символов.")
     normalized_answers = _normalize_answers(answers)
@@ -222,8 +247,8 @@ def build_card(draft: str, answers: list[dict]) -> dict:
     ]
     source_text = draft.strip() + "\n" + "\n".join(answer_lines)
     result = _ask_model(
-        BUILD_CARD_SYSTEM_PROMPT,
-        {"draft": draft.strip(), "answers": normalized_answers},
+        BUILD_CARD_SYSTEM_PROMPT + f"\nUse {LANGUAGE_NAMES[language]} for any generated text. Never translate or invent source facts.",
+        {"draft": draft.strip(), "answers": normalized_answers, "language": language},
     )
     if result is None:
         return {"card": fallback, "source": "fallback"}
@@ -238,4 +263,3 @@ def build_card(draft: str, answers: list[dict]) -> dict:
     card["status"] = "draft"
     card["rating"] = calculate_rating(card)
     return {"card": card, "source": "ai"}
-
