@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
 :root {
   font-family: "Manrope", system-ui, sans-serif;
@@ -604,4 +604,109 @@ a { color: var(--green-bright); }
   .app::before, .app::after { display: none; }
   .brand-mark { border-radius: 0; }
   .sana-mascot { width: min(270px,76vw); }
+}
+
+/* Reference-led identity and readable task flow. */
+:root { --green-bright: #11de7e; --green: #11de7e; --muted: #a4bcb5; --line: #19382c; }
+html { scroll-behavior: auto; }
+body { background: #020b07; font-size: 15px; }
+body::before, .app::before, .app::after, .chat-panel::before, .preview-panel::before { display: none; }
+h1, h2, h3, .panel-heading h2, .empty-preview h3, .page-hero h1, .task-card h3, .rating-summary h3, .empty-page h3, .offer-group h2, .profile-fields h2, .owned-teams h2, .leaderboard h3 {
+  font-family: "Manrope", "Segoe UI", sans-serif; letter-spacing: -.025em; font-weight: 700;
+}
+.topbar { height: 88px; background: #000; padding: 0 30px; box-shadow: none; gap: 28px; }
+.brand { flex-direction: column; gap: 2px; min-width: 145px; width: 145px; align-items: flex-end; }
+.reference-logo { width: 145px; height: 43px; display: block; overflow: hidden; }
+.brand-caption { font: 600 8px/1.3 monospace; color: #11de7e; letter-spacing: .12em; }
+.topbar nav button { font-size: 14px; font-weight: 600; padding: 0 12px; }
+.topbar nav button::after { box-shadow: none; }
+.role-switch button { font-size: 12px; }
+.role-switch button.active { background: #11de7e; color: #00190c; }
+.service { display: none; }
+.profile-mini strong { font-size: 12px; }.profile-mini small { font-size: 10px; }
+.workspace-shell { height: calc(100dvh - 88px); min-height: 590px; grid-template-columns: minmax(360px, 1fr) minmax(440px, 1.15fr); grid-template-rows: 58px minmax(0, 1fr); }
+.workflow-steps { grid-column: 1/-1; display: flex; align-items: center; gap: 32px; padding: 0 30px; border-bottom: 1px solid var(--line); background: #04100b; }
+.workflow-steps > div { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #90aaa0; }
+.workflow-steps span { font: 12px monospace; color: #749788; }
+.workflow-steps .current { color: #f0fff8; }.workflow-steps .current span { color: #11de7e; }
+.chat-panel, .preview-panel { background: #020b07; }
+.preview-panel { background: radial-gradient(ellipse at 55% 36%, #062016 0, #020b07 60%); }
+.panel-heading, .preview-panel .panel-heading { min-height: 92px; background: transparent; padding: 20px 26px; }
+.panel-heading h2 { font-size: 22px; }.eyebrow { font-size: 10px; letter-spacing: .14em; }
+.chat-title { gap: 12px; }
+.agent-presence, .ai-avatar { background: transparent; border: 0; box-shadow: none; width: 42px; height: 40px; overflow: visible; }
+.reference-mascot { width: 200px; aspect-ratio: 165/137; margin: 0 auto 26px; filter: none; mix-blend-mode: screen; animation: mascot-float 6s ease-in-out infinite; }
+.reference-head { width: 100%; height: 100%; overflow: hidden; display: block; }
+.reference-face-mask { fill: #000c08; }
+.reference-mascot > .sana-face { left: 21%; top: 52%; width: 54%; height: 31%; color: #0ee382; }
+.reference-mascot > .sana-face .sana-eye { width: 23%; height: 28%; top: 30%; background: transparent; border: 5px solid currentColor; border-bottom: 0; border-radius: 50% 50% 0 0; box-shadow: none; }
+.reference-mascot > .sana-face .sana-eye-left { left: 9%; }.reference-mascot > .sana-face .sana-eye-right { right: 9%; }
+.reference-mascot > .sana-face .sana-mouth { border-width: 2px; bottom: 10%; width: 14%; height: 8%; }
+.reference-mascot > .sana-face-thinking .sana-eye, .reference-mascot > .sana-face-sleeping .sana-eye { border: 0; border-bottom: 3px solid currentColor; height: 10%; top: 47%; border-radius: 0 0 50% 50%; }
+.reference-mascot > .sana-face-curious .sana-eye, .reference-mascot > .sana-face-worried .sana-eye { border: 3px solid currentColor; width: 16%; height: 40%; border-radius: 35%; }
+.reference-mascot .sleep-z { font-size: 18px; top: -25px; right: -10px; }
+.reference-mascot.sana-mascot-compact { width: 42px; height: 37px; margin: 0; animation: none; }
+.sana-mascot-compact > .sana-face .sana-eye { border-width: 1.5px; }.sana-mascot-compact > .sana-face .sana-mouth { border-width: 1px; }
+.sana-mascot-compact .sleep-z { font-size: 8px; top: -6px; }
+.messages { gap: 20px; padding: 22px 26px; }
+.message { font-size: 15px; line-height: 1.75; background: #091810; border-color: #163525; box-shadow: none; border-radius: 14px; }
+.user .message { background: #103726; color: #ecfff4; box-shadow: none; border: 1px solid #216541; }
+.industry-row { margin: 8px 26px 0; background: #05120c; border-radius: 10px; padding: 12px; }
+.industry-row label, .industry-row select { font-size: 12px; }
+.source-badge { font-size: 10px; }.source-badge.fallback { max-width: 95px; line-height: 1.4; text-align: center; }
+.composer-wrap { padding: 10px 26px 20px; background: #020b07; }
+.composer { background: #061a10; border: 1px solid #286947; box-shadow: none; border-radius: 12px; }
+.composer textarea { font-size: 15px; min-height: 60px; }
+.composer-foot { font-size: 10px; color: #90aaa0; }.composer-foot button { font-size: 12px; }
+.demo-chip { font-size: 12px; background: transparent; padding: 8px 12px; }
+.empty-preview { max-width: 510px; padding: 28px 40px; }
+.empty-preview h3 { font-size: 29px; margin: 12px 0; }.empty-preview p { font-size: 15px; line-height: 1.8; }
+.assistant-kicker { font-size: 10px; letter-spacing: .12em; }.live-dot { font-size: 10px; }
+.page-shell { max-width: 1220px; padding-top: 38px; }
+.page-hero { background: transparent; border: 0; box-shadow: none; border-radius: 0; min-height: 140px; padding: 8px 0 24px; border-bottom: 1px solid #215239; }
+.page-hero::before, .page-hero::after { display: none; }
+.page-hero h1 { font-size: clamp(28px, 3vw, 40px); line-height: 1.2; }.page-hero p { font-size: 15px; max-width: 740px; color: #a4bcb5; }
+.filter-bar, .profile-card, .owned-teams, .task-card, .offer-group, .empty-page { box-shadow: none; background: #06130c; border-radius: 14px; }
+.filter-bar select { font-size: 13px; }.filter-bar span { font-size: 12px; }
+.task-card:hover { box-shadow: none; transform: translateY(-2px); }
+.task-card h3 { font-size: 22px; }.task-card>p, .task-details>div:not(.rating-card), .offer-card p, .offer-meta, .progress-entry { font-size: 14px; line-height: 1.7; }
+.task-meta, .industry-pill, .status { font-size: 11px; }.details-button { font-size: 14px; padding-top: 12px; }
+.field label, .profile-fields label { font-size: 12px; text-transform: none; letter-spacing: 0; color: #b2c9bf; }
+.field input, .field textarea, .field select, .profile-fields input, .profile-fields textarea, .proposal-form input, .proposal-form textarea, .progress-form input, .progress-form textarea { font-size: 14px; line-height: 1.6; background: #04110a; }
+.primary-button, .dark-button, .outline-button, .ghost-button { font-size: 13px; min-height: 44px; border-radius: 9px; box-shadow: none; }
+.primary-button, .primary-button:hover:not(:disabled) { background: #10d77b; color: #001e0e; box-shadow: none; }
+.dark-button, .outline-button, .ghost-button { background: #071a10; border: 1px solid #2b6949; color: #bff8d9; }
+.outline-button:hover, .ghost-button:hover { background: #0e2d1c; color: #fff; }
+.rating-card { background: #081c11; box-shadow: none; }.rating-summary p { color: #a4bcb5; font-size: 12px; }
+.metric>div:first-child, .metric strong, .rating-tip { font-size: 12px; }.metric-list { gap: 18px; }
+.publish-bar { position: static; margin: 24px 0 0; padding: 20px 0 0; gap: 15px; flex-wrap: wrap; background: transparent; }
+.publish-bar strong { font-size: 12px; }.publish-bar small { font-size: 11px; }.card-editor-wrap { padding-bottom: 30px; }
+.profile-avatar { border-radius: 14px; box-shadow: none; }.owned-teams>p, .empty-page p, .soft-empty, .loading-grid { font-size: 14px; line-height: 1.7; }
+.empty-page h3 { font-size: 24px; }.empty-page { padding: 60px 24px; }
+.text-button { font-size: 12px; }.toast { font-size: 14px; }
+@media(max-width:1100px) {
+  .profile-mini { display:none; }.topbar { padding: 0 20px; gap: 18px; }
+  .topbar nav button { font-size: 12px; padding: 0 9px; }.topbar nav button span { display: inline; }
+}
+@media(max-width:920px) {
+  .workspace-shell { height: auto; display: flex; flex-direction: column; min-height: 0; }
+  .workflow-steps { min-height: 58px; padding: 12px 20px; gap: 18px; }
+  .chat-panel { height: 640px; min-height: 0; }.preview-panel { min-height: 500px; border-top: 1px solid var(--line); }
+  .topbar nav button { flex-direction: column; justify-content: center; gap: 5px; font-size: 10px; }
+}
+@media(max-width:680px) {
+  .topbar { height: auto; padding: 10px 14px 0; gap: 10px; }.brand { min-width: 116px; width:116px; }.reference-logo { width:116px; height:34px; }
+  .brand-caption { font-size:6px; }.topbar nav { height:56px; width:calc(100% + 28px); margin:0 -14px; }
+  .topbar nav button { padding:5px 4px; font-size:9px; }.topbar nav button span { display:inline; }
+  .workflow-steps { gap:9px; padding:12px; align-items:flex-start; }.workflow-steps>div { flex:1; font-size:10px; line-height:1.5; gap:5px; }.workflow-steps span { font-size:10px; }
+  .chat-panel { height:600px; }.panel-heading,.preview-panel .panel-heading { padding:16px; min-height:88px; }.panel-heading h2 { font-size:18px; }
+  .messages { padding:18px 16px; margin:0; }.message { font-size:14px; }.industry-row { margin:8px 16px 0; }
+  .composer-wrap { padding:10px 16px 20px; }.composer textarea { font-size:16px; }
+  .empty-preview { padding:32px 22px; }.empty-preview h3 { font-size:25px; }.reference-mascot { width:170px; }
+  .reference-mascot.sana-mascot-compact { width:38px; height:34px; }
+  .page-hero { min-height:160px; gap:16px; padding:0 0 22px; }.page-hero h1 { font-size:29px; }
+  .publish-bar .primary-button { width:100%; }.card-editor-wrap { padding-bottom:24px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  *, *::before, *::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; }
 }

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import brandReference from "./assets/sana-brand-reference.png";
+import characterReference from "./assets/sana-character-reference.png";
 
 const FIELD_DEFS = [
   ["title", "Название задачи", "input"],
@@ -93,11 +95,8 @@ function Icon({ name }) {
 }
 
 function BrandGlyph() {
-  return <svg className="brand-glyph" viewBox="0 0 40 40" aria-hidden="true">
-    <path d="M7 13.5 20 18l13-4.5v16L20 34 7 29.5z" />
-    <path d="M20 18v16M10.5 18.5 20 22l9.5-3.5M20 17V7m0 0-4 4m4-4 4 4" />
-    <circle cx="12" cy="10" r="2" /><circle cx="28" cy="10" r="2" />
-    <path d="M14 11.5 20 17m6-5.5L20 17" />
+  return <svg className="reference-logo" viewBox="220 103 835 245" aria-hidden="true">
+    <image href={brandReference} width="1280" height="490" />
   </svg>;
 }
 
@@ -112,57 +111,13 @@ function SanaFace({ mood = "ready" }) {
 }
 
 function SanaMascot({ mood = "ready", compact = false }) {
-  const labels = {
-    ready: "Sana готова помочь",
-    curious: "Sana внимательно слушает",
-    thinking: "Sana анализирует задачу",
-    happy: "Sana рада — карточка готова",
-    worried: "Sana заметила ошибку",
-    sleeping: "Sana ждёт новую задачу",
-  };
-  return <div className={`sana-mascot sana-mascot-${mood} ${compact ? "sana-mascot-compact" : ""}`} role="img" aria-label={labels[mood]}>
-    <div className="mascot-aura" />
-    <svg className="mascot-vector" viewBox="0 0 240 260" shapeRendering="crispEdges" aria-hidden="true">
-      <g className="mascot-antennae">
-        <path className="pixel-stroke" d="M120 58V24M119 25h-7V11h16v14zM91 60V40L73 26M72 27h-8V14h15v13zM149 60V40l18-14M168 27h-7V14h15v13z" />
-        <path className="pixel-light" d="M116 15h8v7h-8zM68 18h7v6h-7zM165 18h7v6h-7z" />
-      </g>
-      <g className="mascot-head">
-        <path className="pixel-outline" d="M43 64h154v8h13v16h9v73h-9v17h-13v9H43v-9H30v-17h-9V88h9V72h13z" />
-        <path className="pixel-shell" d="M44 72h152v8h9v17h7v55h-7v17h-9v8H44v-8h-9v-17h-7V97h7V80h9z" />
-        <path className="pixel-highlight" d="M52 78h119v7H46v14h-7V88h13z" />
-        <path className="pixel-screen" d="M56 91h128v7h8v54h-8v8H56v-8h-8V98h8z" />
-        <path className="pixel-ear" d="M18 105h13v43H18v-8h-6v-27h6zM209 105h13v8h6v27h-6v8h-13z" />
-        <path className="pixel-glow" d="M15 116h7v21h-7zM218 116h7v21h-7z" />
-      </g>
-      <g className="mascot-body">
-        <path className="pixel-outline" d="M76 185h88v8h13v49h-8v9H71v-9h-8v-49h13z" />
-        <path className="pixel-body" d="M81 191h78v7h10v38h-8v8H79v-8h-8v-38h10z" />
-        <path className="pixel-collar" d="M82 185h17l21 14 21-14h17l-38 25z" />
-        <g className="book-mark">
-          <path d="M94 216h18l8 6 8-6h18v20h-18l-8 6-8-6H94zM120 222v20" />
-          <path d="M120 219v-8m0 0-5 4m5-4 5 4" />
-        </g>
-      </g>
-      <g className="mascot-arm mascot-arm-left">
-        <path className="pixel-outline" d="M62 198H45v8H35v30h9v8h18v-10h8v-28h-8z" />
-        <path className="pixel-shell" d="M57 204H47v7h-6v20h6v7h10v-8h7v-18h-7z" />
-      </g>
-      <g className="mascot-arm mascot-arm-right">
-        <path className="pixel-outline" d="M177 195h17v-9h15v-8h13v31h-9v9h-12v18h-12v8h-17v-10h-7v-28h12z" />
-        <path className="pixel-shell" d="M182 202h10v-9h11v-7h12v17h-8v9h-12v18h-8v8h-10v-8h-6v-18h11z" />
-        <path className="pixel-light" d="M202 188h8v8h-8z" />
-      </g>
-      <g className="mascot-feet">
-        <path className="pixel-outline" d="M83 245h30v15H68v-8h15zM127 245h30v7h15v8h-45z" />
-        <path className="pixel-shell" d="M86 246h22v8H76v-4h10zM132 246h22v4h10v4h-32z" />
-      </g>
-      <g className="pixel-sparkles">
-        <path d="M31 52h6v6h-6zM206 52h5v5h-5zM26 190h4v4h-4zM215 230h6v6h-6z" />
-      </g>
+  const labels = { ready: "Sana готова помочь", curious: "Sana слушает", thinking: "Sana думает", happy: "Карточка готова", worried: "Проверьте сообщение", sleeping: "Sana отдыхает" };
+  return <div className={`sana-mascot reference-mascot sana-mascot-${mood} ${compact ? "sana-mascot-compact" : ""}`} role="img" aria-label={labels[mood]}>
+    <svg className="reference-head" viewBox="65 145 165 137" aria-hidden="true">
+      <image href={characterReference} width="1536" height="1024" />
+      <path className="reference-face-mask" d="M103 225H185V263H103Z" />
     </svg>
     <SanaFace mood={mood} />
-    <span className="mascot-shadow" />
   </div>;
 }
 
@@ -412,9 +367,12 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
 
   return (
     <main className="workspace-shell">
+      <div className="workflow-steps" aria-label="Этапы подготовки задачи">
+        {[["draft", "Опишите задачу"], ["questions", "Ответьте Sana"], ["card", "Проверьте и опубликуйте"]].map(([step, label], index) => <div key={step} className={phase === step ? "current" : ""} aria-current={phase === step ? "step" : undefined}><span>{String(index + 1).padStart(2, "0")}</span>{label}</div>)}
+      </div>
       <section className="chat-panel">
         <header className="panel-heading chat-heading">
-          <div className="chat-title"><div className="agent-presence"><SanaFace mood={mascotMood} /></div><div><span className="eyebrow">AI-КОНСТРУКТОР</span><h2>Диалог с Sana</h2></div></div>
+          <div className="chat-title"><div className="agent-presence"><SanaMascot mood={mascotMood} compact /></div><div><span className="eyebrow">AI-КОНСТРУКТОР</span><h2>Диалог с Sana</h2></div></div>
           <div className="chat-actions"><span className={`source-badge ${source}`}>{source === "ai" ? "AI" : source === "fallback" ? "Резервный режим" : "онлайн"}</span><button className="icon-button" onClick={reset} title="Начать заново"><Icon name="refresh" /></button></div>
         </header>
         <div className="industry-row">
@@ -426,7 +384,7 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
         <div className="messages" ref={messagesRef}>
           {messages.map((message, index) => (
             <div className={`message-row ${message.role}`} key={`${message.role}-${index}`}>
-              {message.role === "ai" && <div className="ai-avatar"><SanaFace mood={message.pending ? "thinking" : message.error ? "worried" : "ready"} /></div>}
+              {message.role === "ai" && <div className="ai-avatar"><SanaMascot mood={message.pending ? "thinking" : message.error ? "worried" : "ready"} compact /></div>}
               <div className={`message ${message.error ? "message-error" : ""} ${message.muted ? "muted" : ""}`}>{message.text}{message.pending && <span className="typing"><i/><i/><i/></span>}</div>
             </div>
           ))}
@@ -435,13 +393,14 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
           {phase === "draft" && <button type="button" className="demo-chip" onClick={loadDemo}><Icon name="spark" /> Загрузить пример</button>}
           <div className="composer">
             <textarea
+              aria-label="Сообщение Sana"
               value={composer}
               disabled={busy}
               placeholder={phase === "draft" ? "Опишите задачу бизнеса…" : phase === "questions" ? "Ответьте своими словами…" : "Карточка готова — редактируйте справа"}
               onChange={(e) => setComposer(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
             />
-            <button type="button" disabled={busy || !composer.trim()} onClick={() => sendMessage()}><Icon name="send" /></button>
+            <button type="button" aria-label="Отправить сообщение" disabled={busy || !composer.trim()} onClick={() => sendMessage()}><Icon name="send" /></button>
           </div>
           <div className="composer-foot">
             <span>Enter — отправить · Shift+Enter — новая строка</span>
@@ -590,7 +549,8 @@ function TeamOffers({ selectedTeam, teamTokens, notify }) {
   useEffect(() => { load(); }, [selectedTeam]);
   async function submitProgress(event, proposalId) {
     event.preventDefault();
-    try { await api(`/api/proposals/${proposalId}/progress`, { method: "POST", body: Object.fromEntries(new FormData(event.currentTarget).entries()), teamToken: teamTokens[selectedTeam] }); notify("Результат отправлен бизнесу"); event.currentTarget.reset(); load(); }
+    const form = event.currentTarget;
+    try { await api(`/api/proposals/${proposalId}/progress`, { method: "POST", body: Object.fromEntries(new FormData(form).entries()), teamToken: teamTokens[selectedTeam] }); notify("Результат отправлен бизнесу"); form.reset(); load(); }
     catch (error) { notify(error.message, true); }
   }
   if (loading) return <div className="loading-grid">Загружаем предложения команды…</div>;
@@ -665,8 +625,8 @@ export default function App() {
   ];
   return <div className="app">
     <header className="topbar">
-      <button className="brand" onClick={() => setView(role === "business" ? "workspace" : "catalog")}><span className="brand-mark"><BrandGlyph /></span><span><strong>SaNa</strong><small>AI БІЛІМ АГЕНТІ</small></span></button>
-      <nav>{nav.map(([id,icon,label]) => <button className={view===id?"active":""} key={id} onClick={()=>setView(id)}><Icon name={icon}/><span>{label}</span></button>)}</nav>
+      <button className="brand" aria-label="SaNa — главная" onClick={() => setView(role === "business" ? "workspace" : "catalog")}><BrandGlyph /><span className="brand-caption">AI БІЛІМ АГЕНТІ</span></button>
+      <nav>{nav.map(([id,icon,label]) => <button aria-label={label} aria-current={view===id?"page":undefined} className={view===id?"active":""} key={id} onClick={()=>setView(id)}><Icon name={icon}/><span>{label}</span></button>)}</nav>
       <div className="top-actions"><span className={`service ${service}`}><i />{service === "online" ? "Сервер работает" : service === "offline" ? "Нет связи" : "Проверяем"}</span><div className="role-switch"><button className={role==="business"?"active":""} onClick={()=>setRole("business")}>Бизнес</button><button className={role==="student"?"active":""} onClick={()=>setRole("student")}>Команда</button></div><button className="profile-mini" onClick={()=>setView("profile")}><span>{role === "business" ? (businessProfile.name || "Б").slice(0,1).toUpperCase() : (activeTeam?.name || "К").slice(0,1).toUpperCase()}</span><div><strong>{role === "business" ? businessProfile.name || "Ваш профиль" : activeTeam?.name || "Создать команду"}</strong><small>{role === "business" ? businessProfile.company || "Представитель бизнеса" : "Студенческая команда"}</small></div></button></div>
     </header>
     {view === "workspace" && role === "business" && <ChatWorkspace notify={notify} ownerTokens={ownerTokens} setOwnerTokens={setOwnerTokens} businessProfile={businessProfile} onPublished={()=>setView("offers")} />}
