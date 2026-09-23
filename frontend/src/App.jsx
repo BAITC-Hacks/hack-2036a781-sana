@@ -174,8 +174,7 @@ function RatingPanel({ rating }) {
   );
 }
 
-function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMood, editing = false }) {
-  const [expanded, setExpanded] = useState(true);
+function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMood, expanded, onToggle, editing = false }) {
   const applyProfile = () => {
     if (!businessProfile?.name && !businessProfile?.email) return;
     setCard((current) => ({
@@ -186,7 +185,7 @@ function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMoo
   return (
     <div className={`preview-panel ${expanded ? "" : "collapsed"}`}>
       <header className="panel-heading">
-        <div><span className="eyebrow">ЖИВАЯ КАРТОЧКА</span><h2>Задача собирается справа</h2></div>
+        <div className="preview-heading-copy"><span className="eyebrow">ЖИВАЯ КАРТОЧКА</span><h2>Задача собирается справа</h2></div>
         <div className="preview-heading-actions">
           <span className="live-dot"><i /> обновляется</span>
           <button
@@ -195,7 +194,7 @@ function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMoo
             aria-expanded={expanded}
             aria-label={expanded ? "Свернуть живую карточку" : "Открыть живую карточку"}
             title={expanded ? "Свернуть карточку" : "Открыть карточку"}
-            onClick={() => setExpanded((current) => !current)}
+            onClick={onToggle}
           >
             <Icon name="arrow" />
           </button>
@@ -249,6 +248,7 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
   ]);
   const [composer, setComposer] = useState(editingTask ? "" : savedDraft.text || "");
   const [industry, setIndustry] = useState(editingTask?.industry || savedDraft.industry || "online_school");
+  const [cardExpanded, setCardExpanded] = useState(true);
   const [questions, setQuestions] = useState([]);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -404,7 +404,7 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
             : "ready";
 
   return (
-    <main className="workspace-shell">
+    <main className={`workspace-shell ${cardExpanded ? "" : "card-collapsed"}`}>
       <section className="workspace-intro">
         <div><span className="eyebrow">SANA · AI-КОНСТРУКТОР</span><h1>От идеи — к понятной задаче</h1><p>Опишите цель. Sana задаст вопросы и поможет подготовить карточку для команды.</p></div>
         <SanaMascot mood={mascotMood} />
@@ -455,7 +455,7 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
           </div>
         </div>
       </section>
-      <CardEditor card={card} setCard={setCard} onPublish={publish} busy={busy} businessProfile={businessProfile} mascotMood={mascotMood} editing={Boolean(editingTask)} />
+      <CardEditor card={card} setCard={setCard} onPublish={publish} busy={busy} businessProfile={businessProfile} mascotMood={mascotMood} expanded={cardExpanded} onToggle={() => setCardExpanded((current) => !current)} editing={Boolean(editingTask)} />
     </main>
   );
 }
