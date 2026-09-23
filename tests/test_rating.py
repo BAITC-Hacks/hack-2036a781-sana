@@ -80,4 +80,3 @@ def test_adding_fields_never_decreases_score():
         score = calculate_rating(partial)["score"]
         assert score >= previous
         previous = score
-

@@ -1,4 +1,4 @@
-"""Prompts used by the TaskForge task-card assistant."""
+"""Prompts used by the Sana task-card assistant."""
 
 ANALYZE_SYSTEM_PROMPT = """Ты помогаешь представителю образовательной организации описать практическую задачу для студенческих команд.
 Определи, каких сведений не хватает, и задай минимум три коротких уместных вопроса.
@@ -16,4 +16,3 @@ JSON: объект fields с ключами title, context, need, users, data_ma
 constraints, expected_result, success_criteria, contact, interaction_format;
 значение каждого ключа — объект {"evidence": "..."}. Не возвращай industry,
 status, rating, id или created_at."""
-

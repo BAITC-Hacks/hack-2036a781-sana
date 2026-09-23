@@ -20,4 +20,3 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(ai, "_client", lambda: None)
     with TestClient(app) as test_client:
         yield test_client
-

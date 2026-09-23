@@ -190,4 +190,3 @@ def update_progress_status(progress_id: str, status: str, points: int = 0) -> di
                 return None
             return entry
     return None
-

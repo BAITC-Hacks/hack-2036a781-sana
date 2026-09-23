@@ -93,4 +93,3 @@ def calculate_rating(card: dict | None) -> dict:
         "missing": missing,
         "tips": [tip for _weight, tip in tips],
     }
-

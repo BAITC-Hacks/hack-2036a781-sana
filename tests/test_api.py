@@ -1,3 +1,5 @@
+import pytest
+
 from core import ai
 
 
@@ -5,7 +7,7 @@ def test_health_and_home(client):
     assert client.get("/api/health").json() == {"status": "ok"}
     home = client.get("/")
     assert home.status_code == 200
-    assert "TaskForge" in home.text
+    assert "Sana" in home.text
 
 
 def test_analyze_returns_three_fallback_questions(client):
@@ -17,6 +19,20 @@ def test_analyze_returns_three_fallback_questions(client):
     result = response.json()["data"]
     assert result["source"] == "fallback"
     assert len(result["questions"]) >= 3
+
+
+@pytest.mark.parametrize(
+    ("locale", "expected"),
+    [("ru", "Что происходит"), ("kk", "Қазір не болып"), ("en", "What is happening")],
+)
+def test_analyze_fallback_uses_selected_language(client, locale, expected):
+    result = client.post(
+        "/api/analyze",
+        json={"draft": "A school needs to improve practical learning activities.", "locale": locale},
+    ).json()["data"]
+    assert result["source"] == "fallback"
+    assert len(result["questions"]) >= 3
+    assert expected in result["questions"][0]["question"]
 
 
 def test_fallback_mode_never_calls_model(client, monkeypatch):
@@ -125,4 +141,3 @@ def test_filters_do_not_change_full_open_catalog(client):
     recommended = client.get("/api/recommendations?team_id=team_01").json()["data"]["tasks"]
     assert len(recommended) <= 3
     assert len(client.get("/api/tasks").json()["data"]["tasks"]) == 5
-

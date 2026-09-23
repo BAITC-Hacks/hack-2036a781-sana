@@ -33,8 +33,8 @@ MAX_PROPOSAL_TEXT_LENGTH = 2000
 PROGRESS_POINTS_PER_CONFIRMED_STAGE = 10
 
 app = FastAPI(
-    title="TaskForge",
-    description="Открытый каталог практических задач для образования",
+    title="Sana",
+    description="Практикалық білім міндеттерінің ашық каталогы",
     version="0.1.0",
 )
 app.mount("/static", StaticFiles(directory=STATIC_ROOT), name="static")
@@ -99,6 +99,13 @@ def _safe_link(value: str) -> bool:
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
+def _locale(body: dict) -> Union[str, JSONResponse]:
+    language = body.get("locale", "ru")
+    if not isinstance(language, str) or language not in {"ru", "kk", "en"}:
+        return _failure("invalid_input", "Язык должен быть ru, kk или en.")
+    return language
+
+
 def _error_from_result(result: dict) -> Optional[JSONResponse]:
     error = result.get("error") if isinstance(result, dict) else None
     if not isinstance(error, dict):
@@ -126,7 +133,10 @@ async def analyze(request: Request) -> JSONResponse:
         return body
     draft = body.get("draft")
     industry = body.get("industry", "")
-    result = ai.analyze_draft(draft, industry)
+    language = _locale(body)
+    if isinstance(language, JSONResponse):
+        return language
+    result = ai.analyze_draft(draft, industry, language)
     error = _error_from_result(result)
     return error or _success(result)
 
@@ -136,7 +146,10 @@ async def build_card(request: Request) -> JSONResponse:
     body = await _read_body(request)
     if isinstance(body, JSONResponse):
         return body
-    result = ai.build_card(body.get("draft"), body.get("answers", []))
+    language = _locale(body)
+    if isinstance(language, JSONResponse):
+        return language
+    result = ai.build_card(body.get("draft"), body.get("answers", []), language)
     error = _error_from_result(result)
     if error:
         return error
@@ -395,4 +408,3 @@ def recommendations(team_id: str) -> JSONResponse:
 async def unhandled_exception(_request: Request, exc: Exception) -> JSONResponse:
     LOGGER.exception("Необработанная ошибка приложения", exc_info=exc)
     return _failure("internal_error", "Не удалось выполнить запрос. Попробуйте ещё раз.")
-

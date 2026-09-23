@@ -286,3 +286,59 @@ body { color: var(--ink); background: radial-gradient(ellipse at 82% 4%, #0a1a11
 .no-proposals { margin: 18px 0 2px; color: #87948c; font-size: 12px; }
 @media (max-width: 760px) { .brand-product, .role-picker > span { display: none; } .role-picker select { max-width: 155px; } }
 
+/* Sana brand and accessible compact controls */
+.topbar { background: #050706; border-bottom-color: #202724; }
+.brand { display: inline-flex; width: 166px; height: 56px; overflow: hidden; align-items: center; }
+.brand-image { display: block; width: 166px; height: 166px; max-width: none; object-fit: cover; object-position: center; }
+.language-picker { display: flex; align-items: center; gap: 7px; color: #77847c; font-size: 10px; }
+.language-picker select { min-height: 38px; padding: 7px 9px; border: 1px solid #26312b; border-radius: 6px; background: #0d120f; color: #f4f7f5; }
+.role-picker select, .language-picker select { font-size: 12px; }
+.metric-missing { margin-left: 5px; color: #e6bf75; font-size: 9px; }
+.metric-row[data-filled=false] .metric-name::after { content: none; }
+.button, .tab, select { min-height: 42px; }
+.button:focus-visible, .tab:focus-visible, select:focus-visible, a:focus-visible, .input:focus-visible { outline: 2px solid #00df78; outline-offset: 3px; }
+.topbar-right { gap: 16px; }
+@media (max-width: 760px) {
+  .topbar { height: auto; min-height: 68px; padding: 6px 16px; gap: 10px; }
+  .brand { width: 112px; height: 48px; flex: 0 0 auto; }
+  .brand-image { width: 112px; height: 112px; }
+  .topbar-right { justify-content: end; gap: 8px; flex-wrap: wrap; }
+  .service-status { display: none; }
+  .role-picker select { max-width: 142px; }
+  .language-picker > span { display: none; }
+  .shell { width: min(100% - 32px, 600px); }
+  .hero { min-height: 0; padding: 42px 0 32px; display: block; }
+  h1 { font-size: clamp(37px, 10vw, 54px); }
+  .hero-note { margin: 24px 0 0; }
+  .tabs { gap: clamp(12px, 5vw, 25px); overflow-x: auto; }
+  .tab { flex: 0 0 auto; font-size: 12px; }
+  .view { padding: 32px 0 52px; }
+  .section-heading { align-items: start; }
+  .section-heading h2 { font-size: 24px; }
+  .builder-grid, .card-layout, .scoreboard { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .builder-aside { padding-top: 0; }
+  .card-workspace { margin-top: 40px; padding-top: 30px; }
+  .card-layout { display: flex; flex-direction: column-reverse; }
+  .card-form-panel, .rating-panel, .student-progress { width: 100%; padding: 18px; }
+  .rating-panel { position: static; }
+  .filters { align-items: stretch; }
+  .filters label { min-width: 100%; }
+  .filters .button { align-self: start; }
+  .task-card-head { gap: 10px; }
+  .progress-form, .card-fields { grid-template-columns: minmax(0, 1fr); }
+  .card-field.full { grid-column: auto; }
+  .team-toolbar { align-items: stretch; flex-direction: column; }
+  .human-check { white-space: normal; }
+  .task-actions { flex-wrap: wrap; }
+}
+@media (max-width: 390px) {
+  .topbar-right { gap: 5px; }
+  .role-picker select { max-width: 122px; }
+  .brand { width: 96px; }
+  .brand-image { width: 96px; height: 96px; }
+  .button { padding: 11px 12px; }
+  .subheading { align-items: start; gap: 8px; flex-direction: column; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
