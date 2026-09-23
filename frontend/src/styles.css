@@ -78,6 +78,13 @@ h1, h2, h3 { letter-spacing: -.035em; line-height: 1.25; }
 .messages { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 22px 20px; scrollbar-color: #325640 transparent; }
 .message-row { display: flex; align-items: flex-end; gap: 9px; max-width: 97%; }.message-row.user { align-self: flex-end; }
 .message { background: #102217; border: 1px solid #1b3b29; border-radius: 13px 13px 13px 3px; padding: 12px 14px; font-size: 14px; line-height: 1.75; }
+.message-pending { width: min(420px,calc(100vw - 130px)); padding: 13px; }
+.ai-progress { min-width: 0; }
+.ai-progress-head { display: flex; align-items: center; gap: 11px; }.ai-progress-head strong,.ai-progress-head span { display: block; }.ai-progress-head strong { color: #effcf3; font-size: 12px; }.ai-progress-head span { color: #9fc3ac; font-size: 10px; margin-top: 2px; }
+.ai-progress-orbit { width: 29px; height: 29px; flex: 0 0 29px; position: relative; border: 1px solid #2d7650; border-radius: 50%; animation: progress-spin 1.5s linear infinite; }.ai-progress-orbit i:first-child { position: absolute; width: 6px; height: 6px; right: -2px; top: 4px; border-radius: 50%; background: #23e58a; box-shadow: 0 0 10px #23e58a; }.ai-progress-orbit i:last-child { position: absolute; inset: 8px; border: 2px solid #39d98b; border-radius: 2px; }
+.ai-progress-track { height: 3px; overflow: hidden; border-radius: 3px; background: #294535; margin: 12px 0; }.ai-progress-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#17bc6d,#43f0a0); transition: width .35s ease; }
+.ai-progress-steps { display: grid; gap: 5px; }.ai-progress-steps span { display: flex; align-items: center; gap: 6px; color: #668373; font-size: 9px; line-height: 1.35; transition: color .2s; }.ai-progress-steps span>i { width: 5px; height: 5px; border-radius: 50%; background: #395243; }.ai-progress-steps span.active { color: #b9ddc6; }.ai-progress-steps span.active>i { background: #2cda84; box-shadow: 0 0 7px #2cda84; }
+@keyframes progress-spin { to { transform: rotate(360deg); } }
 .user .message { background: #16472e; color: #f3fff8; border-color: #2c6746; border-radius: 13px 13px 3px 13px; }.message.muted { color: #b5ccbe; }.message-error { background: #371b17; color: #ffcec6; border-color: #704337; }
 .agent-presence,.ai-avatar { flex: 0 0 34px; width: 34px; }
 .composer-wrap { padding: 8px 20px 18px; }
@@ -100,6 +107,7 @@ h1, h2, h3 { letter-spacing: -.035em; line-height: 1.25; }
 .preview-panel.collapsed .preview-heading-actions { width: 100%; justify-content: center; }
 .preview-panel.collapsed .preview-toggle .icon { transform: rotate(180deg); }
 .empty-preview { margin: auto; padding: 28px; text-align: center; max-width: 440px; }.empty-preview h3 { font-size: 25px; margin: 12px 0; }.empty-preview p { font-size: 14px; line-height: 1.8; color: #68786d; margin: 0; }
+.card-building { margin: auto; width: min(430px,100%); padding: 28px; text-align: center; }.card-building .reference-mascot { width: 120px; margin-bottom: 18px; }.card-building h3 { margin: 12px 0 18px; font-size: 24px; }.card-building .ai-progress-panel { padding: 16px; border: 1px solid #d9e5dc; border-radius: 13px; background: #07170d; text-align: left; box-shadow: 0 12px 35px #163c2414; }
 .empty-preview .reference-mascot { width: 145px; margin: 0 auto 23px; }
 .assistant-kicker { color: #287f50; font-size: 9px; letter-spacing: .08em; font-weight: 700; }
 

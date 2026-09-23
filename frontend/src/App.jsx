@@ -204,7 +204,23 @@ function TaskSheet({ card, businessProfile, editing }) {
   );
 }
 
-function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMood, expanded, onToggle, editing = false }) {
+function AiProgress({ operation = "analyze", panel = false }) {
+  const steps = operation === "build"
+    ? ["Сверяю ответы с черновиком", "Заполняю поля только вашими фактами", "Считаю готовность карточки"]
+    : ["Читаю описание задачи", "Проверяю, каких фактов не хватает", "Готовлю уточняющие вопросы"];
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const timer = window.setInterval(() => setStep((current) => (current + 1) % steps.length), 2200);
+    return () => window.clearInterval(timer);
+  }, [operation]);
+  return <div className={`ai-progress ${panel ? "ai-progress-panel" : ""}`} role="status" aria-live="polite">
+    <div className="ai-progress-head"><span className="ai-progress-orbit"><i /><i /></span><div><strong>Sana обрабатывает запрос</strong><span>{steps[step]}</span></div></div>
+    <div className="ai-progress-track"><i style={{ width: `${((step + 1) / steps.length) * 100}%` }} /></div>
+    <div className="ai-progress-steps">{steps.map((label, index) => <span className={index <= step ? "active" : ""} key={label}><i />{label}</span>)}</div>
+  </div>;
+}
+
+function CardEditor({ card, setCard, onPublish, busy, aiOperation, businessProfile, mascotMood, expanded, onToggle, editing = false }) {
   const [displayMode, setDisplayMode] = useState(editing ? "edit" : "preview");
   const applyProfile = () => {
     if (!businessProfile?.name && !businessProfile?.email) return;
@@ -235,14 +251,21 @@ function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMoo
           </button>
         </div>
       </header>
-      {expanded && (!card ? (
+      {expanded && (!card ? (aiOperation ? (
+        <div className="card-building">
+          <SanaMascot mood="thinking" />
+          <span className="assistant-kicker"><i /> AI работает с вашими данными</span>
+          <h3>{aiOperation === "build" ? "Собираем живую карточку" : "Разбираем вашу задачу"}</h3>
+          <AiProgress operation={aiOperation} panel />
+        </div>
+      ) : (
         <div className="empty-preview">
           <SanaMascot mood={mascotMood} />
           <span className="assistant-kicker"><i /> Sana рядом на каждом шаге</span>
           <h3>Здесь появится карточка</h3>
           <p>Расскажите AI о задаче и ответьте на уточняющие вопросы. Поля и рейтинг будут заполняться только вашими фактами.</p>
         </div>
-      ) : (
+      )) : (
         <div className="card-editor-wrap">
           {displayMode === "preview" ? <TaskSheet card={card} businessProfile={businessProfile} editing={editing} /> : <>
           <div className="card-form">
@@ -294,6 +317,7 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
   const [card, setCard] = useState(editingTask ? { ...initialCard(), ...editingTask } : null);
   const [source, setSource] = useState(editingTask ? "saved" : "");
   const [busy, setBusy] = useState(false);
+  const [aiOperation, setAiOperation] = useState("");
   const [idle, setIdle] = useState(false);
   const messagesRef = useRef(null);
 
@@ -326,7 +350,8 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
 
   async function buildCard(nextAnswers) {
     setBusy(true);
-    append({ role: "ai", text: "Спасибо. Собираю карточку только из того, что вы сообщили…", pending: true });
+    setAiOperation("build");
+    append({ role: "ai", pending: true, operation: "build" });
     try {
       const result = await api("/api/build-card", {
         method: "POST",
@@ -345,7 +370,7 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
       }]);
     } catch (error) {
       setMessages((current) => [...current.filter((item) => !item.pending), { role: "ai", text: error.message, error: true }]);
-    } finally { setBusy(false); }
+    } finally { setBusy(false); setAiOperation(""); }
   }
 
   async function sendMessage(skip = false, suggestedAnswer = "") {
@@ -362,15 +387,17 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
       setComposer("");
       append({ role: "user", text });
       setBusy(true);
+      setAiOperation("analyze");
+      append({ role: "ai", pending: true, operation: "analyze" });
       try {
         const result = await api("/api/analyze", { method: "POST", body: { draft: text, industry, locale: "ru" } });
         setQuestions(result.questions || []);
         setSource(result.source);
         setPhase("questions");
         setQuestionIndex(0);
-        append({ role: "ai", text: result.questions?.[0]?.question || "Что именно необходимо изменить?" });
-      } catch (error) { append({ role: "ai", text: error.message, error: true }); }
-      finally { setBusy(false); }
+        setMessages((current) => [...current.filter((item) => !item.pending), { role: "ai", text: result.questions?.[0]?.question || "Что именно необходимо изменить?" }]);
+      } catch (error) { setMessages((current) => [...current.filter((item) => !item.pending), { role: "ai", text: error.message, error: true }]); }
+      finally { setBusy(false); setAiOperation(""); }
       return;
     }
     const current = questions[questionIndex];
@@ -422,6 +449,7 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
 
   function reset() {
     setMessages([{ role: "ai", text: "Начнём заново. Опишите задачу одним сообщением." }]);
+    setAiOperation("");
     setComposer(""); setQuestions([]); setAnswers({}); setQuestionIndex(0); setDraft(""); setCard(null); setPhase("draft"); setSource("");
     try { localStorage.removeItem("sana-chat-draft"); } catch { /* Ignore storage failures. */ }
     onEditingFinished?.();
@@ -464,7 +492,7 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
           {messages.map((message, index) => (
             <div className={`message-row ${message.role}`} key={`${message.role}-${index}`}>
               {message.role === "ai" && <div className="ai-avatar"><SanaMascot mood={message.pending ? "thinking" : message.error ? "worried" : "ready"} compact /></div>}
-              <div className={`message ${message.error ? "message-error" : ""} ${message.muted ? "muted" : ""}`}>{message.text}{message.pending && <span className="typing"><i/><i/><i/></span>}</div>
+              <div className={`message ${message.error ? "message-error" : ""} ${message.muted ? "muted" : ""} ${message.pending ? "message-pending" : ""}`}>{message.pending ? <AiProgress operation={message.operation} /> : message.text}</div>
             </div>
           ))}
         </div>
@@ -492,7 +520,7 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
           </div>
         </div>
       </section>
-      <CardEditor card={card} setCard={setCard} onPublish={publish} busy={busy} businessProfile={businessProfile} mascotMood={mascotMood} expanded={cardExpanded} onToggle={() => setCardExpanded((current) => !current)} editing={Boolean(editingTask)} />
+      <CardEditor card={card} setCard={setCard} onPublish={publish} busy={busy} aiOperation={aiOperation} businessProfile={businessProfile} mascotMood={mascotMood} expanded={cardExpanded} onToggle={() => setCardExpanded((current) => !current)} editing={Boolean(editingTask)} />
     </main>
   );
 }
