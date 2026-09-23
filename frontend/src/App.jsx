@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import brandReference from "./assets/sana-brand-reference.png";
+import characterReference from "./assets/sana-character-reference.png";
 
 const FIELD_DEFS = [
   ["title", "Название задачи", "input"],
@@ -92,6 +94,33 @@ function Icon({ name }) {
   return <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
 }
 
+function BrandGlyph() {
+  return <svg className="reference-logo" viewBox="220 103 835 245" aria-hidden="true">
+    <image href={brandReference} width="1280" height="490" />
+  </svg>;
+}
+
+function SanaFace({ mood = "ready" }) {
+  return <span className={`sana-face sana-face-${mood}`} aria-hidden="true">
+    <i className="sana-eye sana-eye-left" />
+    <i className="sana-eye sana-eye-right" />
+    <i className="sana-mouth" />
+    {mood === "thinking" && <span className="thought-dots"><i /><i /><i /></span>}
+    {mood === "sleeping" && <span className="sleep-z">z</span>}
+  </span>;
+}
+
+function SanaMascot({ mood = "ready", compact = false }) {
+  const labels = { ready: "Sana готова помочь", curious: "Sana слушает", thinking: "Sana думает", happy: "Карточка готова", worried: "Проверьте сообщение", sleeping: "Sana отдыхает" };
+  return <div className={`sana-mascot reference-mascot sana-mascot-${mood} ${compact ? "sana-mascot-compact" : ""}`} role="img" aria-label={labels[mood]}>
+    <svg className="reference-head" viewBox="65 145 165 137" aria-hidden="true">
+      <image href={characterReference} width="1536" height="1024" />
+      <path className="reference-face-mask" d="M103 225H185V263H103Z" />
+    </svg>
+    <SanaFace mood={mood} />
+  </div>;
+}
+
 function Toast({ toast }) {
   if (!toast) return null;
   return <div className={`toast ${toast.error ? "toast-error" : ""}`}>{toast.text}</div>;
@@ -138,7 +167,7 @@ function RatingPanel({ rating }) {
   );
 }
 
-function CardEditor({ card, setCard, onPublish, busy, businessProfile, editing = false }) {
+function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMood, editing = false }) {
   const applyProfile = () => {
     if (!businessProfile?.name && !businessProfile?.email) return;
     setCard((current) => ({
@@ -154,7 +183,8 @@ function CardEditor({ card, setCard, onPublish, busy, businessProfile, editing =
       </header>
       {!card ? (
         <div className="empty-preview">
-          <div className="empty-orbit"><Icon name="spark" /></div>
+          <SanaMascot mood={mascotMood} />
+          <span className="assistant-kicker"><i /> Sana рядом на каждом шаге</span>
           <h3>Здесь появится карточка</h3>
           <p>Расскажите AI о задаче и ответьте на уточняющие вопросы. Поля и рейтинг будут заполняться только вашими фактами.</p>
         </div>
@@ -207,10 +237,20 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
   const [card, setCard] = useState(editingTask ? { ...initialCard(), ...editingTask } : null);
   const [source, setSource] = useState(editingTask ? "saved" : "");
   const [busy, setBusy] = useState(false);
-  const endRef = useRef(null);
+  const [idle, setIdle] = useState(false);
+  const messagesRef = useRef(null);
 
   const cardFingerprint = card ? FIELD_DEFS.map(([key]) => card[key] || "").concat(card.industry || "").join("\u0001") : "";
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, busy]);
+  useEffect(() => {
+    const container = messagesRef.current;
+    if (container) container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+  }, [messages, busy]);
+  useEffect(() => {
+    setIdle(false);
+    if (busy) return undefined;
+    const timer = window.setTimeout(() => setIdle(true), 18000);
+    return () => window.clearTimeout(timer);
+  }, [messages, composer, phase, busy]);
   useEffect(() => {
     if (phase === "draft") saveJson("sana-chat-draft", { text: composer, industry });
   }, [composer, industry, phase]);
@@ -330,11 +370,27 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
     onEditingFinished?.();
   }
 
+  const lastMessage = messages[messages.length - 1];
+  const mascotMood = busy
+    ? "thinking"
+    : lastMessage?.error
+      ? "worried"
+      : phase === "card"
+        ? "happy"
+        : idle
+          ? "sleeping"
+          : composer.trim()
+            ? "curious"
+            : "ready";
+
   return (
     <main className="workspace-shell">
+      <div className="workflow-steps" aria-label="Этапы подготовки задачи">
+        {[["draft", "Опишите задачу"], ["questions", "Ответьте Sana"], ["card", "Проверьте и опубликуйте"]].map(([step, label], index) => <div key={step} className={phase === step ? "current" : ""} aria-current={phase === step ? "step" : undefined}><span>{String(index + 1).padStart(2, "0")}</span>{label}</div>)}
+      </div>
       <section className="chat-panel">
         <header className="panel-heading chat-heading">
-          <div><span className="eyebrow">AI-КОНСТРУКТОР</span><h2>Диалог с Sana</h2></div>
+          <div className="chat-title"><div className="agent-presence"><SanaMascot mood={mascotMood} compact /></div><div><span className="eyebrow">AI-КОНСТРУКТОР</span><h2>Диалог с Sana</h2></div></div>
           <div className="chat-actions">{phase === "questions" && <span className="source-badge">Вопрос {questionIndex + 1}/{questions.length}</span>}<span className={`source-badge ${source}`}>{source === "ai" ? "AI" : source === "fallback" ? "Резервный режим" : source === "saved" ? "Редактирование" : "онлайн"}</span><button className="icon-button" onClick={reset} title="Начать заново"><Icon name="refresh" /></button></div>
         </header>
         <div className="industry-row">
@@ -343,14 +399,13 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
             {Object.entries(INDUSTRIES).filter(([key]) => key !== "education").map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </div>
-        <div className="messages">
+        <div className="messages" ref={messagesRef}>
           {messages.map((message, index) => (
             <div className={`message-row ${message.role}`} key={`${message.role}-${index}`}>
-              {message.role === "ai" && <div className="ai-avatar"><Icon name="spark" /></div>}
+              {message.role === "ai" && <div className="ai-avatar"><SanaMascot mood={message.pending ? "thinking" : message.error ? "worried" : "ready"} compact /></div>}
               <div className={`message ${message.error ? "message-error" : ""} ${message.muted ? "muted" : ""}`}>{message.text}{message.pending && <span className="typing"><i/><i/><i/></span>}</div>
             </div>
           ))}
-          <div ref={endRef} />
         </div>
         <div className="composer-wrap">
           {phase === "draft" && <button type="button" className="demo-chip" onClick={loadDemo}><Icon name="spark" /> Загрузить пример</button>}
@@ -361,13 +416,14 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
           ))}
           <div className="composer">
             <textarea
+              aria-label="Сообщение Sana"
               value={composer}
               disabled={busy}
               placeholder={phase === "draft" ? "Опишите задачу бизнеса…" : phase === "questions" ? "Ответьте своими словами…" : "Карточка готова — редактируйте справа"}
               onChange={(e) => setComposer(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
             />
-            <button type="button" disabled={busy || !composer.trim()} onClick={() => sendMessage()}><Icon name="send" /></button>
+            <button type="button" aria-label="Отправить сообщение" disabled={busy || !composer.trim()} onClick={() => sendMessage()}><Icon name="send" /></button>
           </div>
           <div className="composer-foot">
             <span>Enter — отправить · Shift+Enter — новая строка</span>
@@ -375,7 +431,7 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
           </div>
         </div>
       </section>
-      <CardEditor card={card} setCard={setCard} onPublish={publish} busy={busy} businessProfile={businessProfile} editing={Boolean(editingTask)} />
+      <CardEditor card={card} setCard={setCard} onPublish={publish} busy={busy} businessProfile={businessProfile} mascotMood={mascotMood} editing={Boolean(editingTask)} />
     </main>
   );
 }
@@ -526,7 +582,8 @@ function TeamOffers({ selectedTeam, teamTokens, notify }) {
   useEffect(() => { load(); }, [selectedTeam]);
   async function submitProgress(event, proposalId) {
     event.preventDefault();
-    try { await api(`/api/proposals/${proposalId}/progress`, { method: "POST", body: Object.fromEntries(new FormData(event.currentTarget).entries()), teamToken: teamTokens[selectedTeam] }); notify("Результат отправлен бизнесу"); event.currentTarget.reset(); load(); }
+    const form = event.currentTarget;
+    try { await api(`/api/proposals/${proposalId}/progress`, { method: "POST", body: Object.fromEntries(new FormData(form).entries()), teamToken: teamTokens[selectedTeam] }); notify("Результат отправлен бизнесу"); form.reset(); load(); }
     catch (error) { notify(error.message, true); }
   }
   if (loading) return <div className="loading-grid">Загружаем предложения команды…</div>;
@@ -623,6 +680,9 @@ export default function App() {
   useEffect(() => {
     if (role === "student" && view === "workspace") setView("catalog");
   }, [role]);
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [view, role]);
   const activeTeam = useMemo(() => teams.find((team) => team.id === selectedTeam), [teams, selectedTeam]);
   const nav = [
     ...(role === "business" ? [["workspace", "chat", "AI-конструктор"]] : []),
@@ -634,8 +694,8 @@ export default function App() {
   }
   return <div className="app">
     <header className="topbar">
-      <button className="brand" onClick={() => setView(role === "business" ? "workspace" : "catalog")}><span className="brand-mark"><Icon name="spark" /></span><span><strong>SANA</strong><small>AI · PRACTICE</small></span></button>
-      <nav>{nav.map(([id,icon,label]) => <button className={view===id?"active":""} key={id} onClick={()=>setView(id)}><Icon name={icon}/><span>{label}</span></button>)}</nav>
+      <button className="brand" aria-label="SaNa — главная" onClick={() => setView(role === "business" ? "workspace" : "catalog")}><BrandGlyph /><span className="brand-caption">AI БІЛІМ АГЕНТІ</span></button>
+      <nav>{nav.map(([id,icon,label]) => <button aria-label={label} aria-current={view===id?"page":undefined} className={view===id?"active":""} key={id} onClick={()=>setView(id)}><Icon name={icon}/><span>{label}</span></button>)}</nav>
       <div className="top-actions"><span className={`service ${service}`}><i />{service === "online" ? "Сервер работает" : service === "offline" ? "Нет связи" : "Проверяем"}</span><div className="role-switch"><button className={role==="business"?"active":""} onClick={()=>setRole("business")}>Бизнес</button><button className={role==="student"?"active":""} onClick={()=>setRole("student")}>Команда</button></div><button className="profile-mini" onClick={()=>setView("profile")}><span>{role === "business" ? (businessProfile.name || "Б").slice(0,1).toUpperCase() : (activeTeam?.name || "К").slice(0,1).toUpperCase()}</span><div><strong>{role === "business" ? businessProfile.name || "Ваш профиль" : activeTeam?.name || "Создать команду"}</strong><small>{role === "business" ? businessProfile.company || "Представитель бизнеса" : "Студенческая команда"}</small></div></button></div>
     </header>
     {view === "workspace" && role === "business" && <ChatWorkspace key={editingTask?.id || "new"} notify={notify} ownerTokens={ownerTokens} setOwnerTokens={setOwnerTokens} businessProfile={businessProfile} editingTask={editingTask} onEditingFinished={()=>setEditingTask(null)} onPublished={()=>setView("offers")} />}
