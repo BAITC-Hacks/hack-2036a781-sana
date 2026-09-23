@@ -31,7 +31,7 @@ DATA_DIR = Path(os.getenv("SANA_DATA_DIR") or PROJECT_ROOT / ".sana-data")
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 _INITIALIZED_URL = ""
 _DATABASE_LOCK = threading.Lock()
-_RECORD_TYPES = {"task", "team", "proposal", "progress"}
+_RECORD_TYPES = {"task", "team", "proposal", "progress", "workflow"}
 
 
 class DataStoreError(RuntimeError):
@@ -86,6 +86,39 @@ def initialize_database() -> None:
 
 def storage_backend() -> str:
     return "postgresql" if _database_enabled() else "json"
+
+
+def workflow_state(change=None):
+    """Atomic account/workspace aggregate using the existing storage backend.
+
+    A callback mutates the state under a process/database lock; exceptions roll
+    back the mutation. No network/model calls may run inside the callback.
+    """
+    import copy
+    if _database_enabled():
+        with _database_connection() as connection:
+            connection.execute("SELECT pg_advisory_xact_lock(731942081)")
+            row = connection.execute(
+                "SELECT payload FROM sana_records WHERE record_type='workflow' AND record_id='accounts' FOR UPDATE"
+            ).fetchone()
+            state = dict(row["payload"]) if row else {}
+            if change is None:
+                return copy.deepcopy(state)
+            result = change(state)
+            connection.execute(
+                "INSERT INTO sana_records(record_type,record_id,payload) VALUES ('workflow','accounts',%s) "
+                "ON CONFLICT(record_type,record_id) DO UPDATE SET payload=EXCLUDED.payload,updated_at=NOW()",
+                (Jsonb(state),),
+            )
+            return copy.deepcopy(result)
+    with _locked_items("workflow.json") as rows:
+        state = rows[0] if rows else {}
+        if change is None:
+            return copy.deepcopy(state)
+        result = change(state)
+        if not _write_items(_path("workflow.json"), [state]):
+            raise DataStoreError("Не удалось сохранить аккаунт или рабочее пространство.")
+        return copy.deepcopy(result)
 
 
 @contextmanager
@@ -330,7 +363,7 @@ def save_task(task: dict) -> dict:
         return {}
     if _database_enabled():
         return _database_save(
-            "task", "t", task, preserve_fields=("owner_token_hash",)
+            "task", "t", task, preserve_fields=("owner_token_hash", "owner_id")
         )
     with _locked_items("tasks.json") as tasks:
         saved = dict(task)
@@ -339,6 +372,7 @@ def save_task(task: dict) -> dict:
         for index, existing in enumerate(tasks):
             if existing.get("id") == saved["id"]:
                 saved["owner_token_hash"] = existing.get("owner_token_hash", "")
+                saved["owner_id"] = existing.get("owner_id", "")
                 tasks[index] = saved
                 break
         else:
@@ -351,7 +385,7 @@ def update_task(task_id: str, task: dict) -> dict | None:
         return None
     if _database_enabled():
         return _database_update(
-            "task", task_id, task, preserve_fields=("owner_token_hash",)
+            "task", task_id, task, preserve_fields=("owner_token_hash", "owner_id")
         )
     with _locked_items("tasks.json") as tasks:
         for index, existing in enumerate(tasks):
@@ -360,6 +394,7 @@ def update_task(task_id: str, task: dict) -> dict | None:
                 updated["id"] = task_id
                 updated["created_at"] = existing.get("created_at", _now())
                 updated["owner_token_hash"] = existing.get("owner_token_hash", "")
+                updated["owner_id"] = existing.get("owner_id", "")
                 tasks[index] = updated
                 return updated if _write_items(_path("tasks.json"), tasks) else None
     return None

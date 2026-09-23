@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import brandReference from "./assets/sana-brand-reference.png";
+import { AuthScreen, AccountProfile, Notifications, Delivery } from "./AccountUI";
 
 const FIELD_DEFS = [
   ["title", "Название задачи", "input"],
@@ -61,7 +62,7 @@ function saveJson(key, value) {
 }
 
 async function api(path, { method = "GET", body, ownerToken, teamToken } = {}) {
-  const headers = {};
+  const headers = { "X-Sana-Request": "1" };
   if (ownerToken) headers["X-Sana-Owner"] = ownerToken;
   if (teamToken) headers["X-Sana-Team"] = teamToken;
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -637,9 +638,7 @@ function Catalog({ role, selectedTeam, teamTokens, notify, onProfile }) {
       .then((result) => setRecommendations(result.reason || {}))
       .catch(() => setRecommendations({}));
   }, [role, selectedTeam]);
-  const visibleTasks = role === "student" && Object.keys(recommendations).length
-    ? [...tasks].sort((a, b) => Number(Boolean(recommendations[b.id])) - Number(Boolean(recommendations[a.id])))
-    : tasks;
+  const visibleTasks = tasks;
   return <main className="page-shell catalog-page">
     <header className="page-hero"><div><span className="eyebrow">ОТКРЫТЫЙ КАТАЛОГ</span><h1>Задачи, готовые к работе</h1><p>Низкий рейтинг ничего не скрывает — любая команда может откликнуться.</p></div><button className="outline-button" onClick={load}><Icon name="refresh" /> Обновить</button></header>
     <div className="filter-bar">
@@ -671,7 +670,7 @@ function Empty({ title, text }) {
   return <div className="empty-page"><div><Icon name="spark" /></div><h3>{title}</h3><p>{text}</p></div>;
 }
 
-function BusinessOffers({ ownerTokens, notify, onEdit, teams }) {
+function BusinessOffers({ ownerTokens, notify, onEdit, teams, onWork }) {
   const [groups, setGroups] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -711,13 +710,14 @@ function BusinessOffers({ ownerTokens, notify, onEdit, teams }) {
         <div className="offer-head"><strong>{teams.find((team) => team.id === proposal.team_id)?.name || `Команда ${proposal.team_id}`}</strong><span className={`status ${proposal.status}`}>{proposal.status === "new" ? "Новое" : proposal.status === "accepted" ? "Выбрано" : "Отклонено"}</span></div>
         <p><b>Идея:</b> {proposal.idea}</p><p><b>План:</b> {proposal.plan}</p><div className="offer-meta"><span>Срок: {proposal.deadline}</span><a href={proposal.link} target="_blank" rel="noreferrer">Прототип ↗</a></div>
         {proposal.status === "new" && <div className="button-row"><button className="primary-button small" onClick={() => decide(task.id, proposal.id, "accepted")}>Выбрать</button><button className="ghost-button" onClick={() => decide(task.id, proposal.id, "rejected")}>Отклонить</button></div>}
+        {proposal.status === "accepted" && <button className="primary-button small" onClick={onWork}>Открыть работу и решения →</button>}
         {proposal.progress.map((entry) => <div className="progress-entry" key={entry.id}><div><b>Результат этапа</b><p>{entry.result}</p><a href={entry.evidence_link} target="_blank" rel="noreferrer">Открыть доказательство ↗</a></div><span className={`status ${entry.status}`}>{entry.status === "submitted" ? "К проверке" : entry.status === "confirmed" ? `+${entry.points} баллов` : "Отклонено"}</span>{entry.status === "submitted" && <div className="button-row"><button className="primary-button small" onClick={() => decideProgress(task.id, entry.id, "confirmed")}>Подтвердить</button><button className="ghost-button" onClick={() => decideProgress(task.id, entry.id, "rejected")}>Отклонить</button></div>}</div>)}
       </article>)}
     </section>)}</div>
   </>;
 }
 
-function TeamOffers({ selectedTeam, teamTokens, notify }) {
+function TeamOffers({ selectedTeam, teamTokens, notify, onWork }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   async function load() {
@@ -746,13 +746,13 @@ function TeamOffers({ selectedTeam, teamTokens, notify }) {
   return <div className="offer-groups">{items.map(({ proposal, task, progress }) => <section className="offer-group" key={proposal.id}>
     <header><div><span className="eyebrow">{INDUSTRIES[task.industry]}</span><h2>{task.title}</h2></div><span className={`status ${proposal.status}`}>{proposal.status === "new" ? "На рассмотрении" : proposal.status === "accepted" ? "Выбрано" : "Отклонено"}</span></header>
     <p>{proposal.idea}</p>
-    {proposal.status === "accepted" && <form className="progress-form" onSubmit={(e) => submitProgress(e, proposal.id)}><textarea name="result" placeholder="Какой фактический результат получен?" required /><input name="evidence_link" type="url" placeholder="Ссылка на доказательство" required /><button className="primary-button small">Отправить этап на проверку</button></form>}
+    {proposal.status === "accepted" && <button className="primary-button" onClick={onWork}>Открыть рабочее пространство →</button>}
     {progress.map((entry) => <div className="progress-entry" key={entry.id}><p>{entry.result}</p><span className={`status ${entry.status}`}>{entry.status === "submitted" ? "Ожидает проверки" : entry.status === "confirmed" ? `Подтверждено · +${entry.points}` : "Не подтверждено"}</span></div>)}
   </section>)}</div>;
 }
 
-function Offers({ role, ownerTokens, selectedTeam, teamTokens, notify, teams, onEdit }) {
-  return <main className="page-shell"><header className="page-hero"><div><span className="eyebrow">{role === "business" ? "ПРОСТРАНСТВО БИЗНЕСА" : "МОЯ КОМАНДА"}</span><h1>{role === "business" ? "Предложения и решения" : "Наши отклики и прогресс"}</h1><p>{role === "business" ? "Сравнивайте идеи и выбирайте одну, несколько или ни одной команды." : "Следите за решением бизнеса и отправляйте подтверждённые результаты."}</p></div></header>{role === "business" ? <BusinessOffers ownerTokens={ownerTokens} notify={notify} onEdit={onEdit} teams={teams} /> : <TeamOffers selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} />}</main>;
+function Offers({ role, ownerTokens, selectedTeam, teamTokens, notify, teams, onEdit, onWork }) {
+  return <main className="page-shell"><header className="page-hero"><div><span className="eyebrow">{role === "business" ? "ПРОСТРАНСТВО БИЗНЕСА" : "МОЯ КОМАНДА"}</span><h1>{role === "business" ? "Предложения и решения" : "Наши отклики и прогресс"}</h1><p>{role === "business" ? "Сравнивайте идеи и выбирайте одну, несколько или ни одной команды." : "Следите за решением бизнеса и отправляйте подтверждённые результаты."}</p></div></header>{role === "business" ? <BusinessOffers ownerTokens={ownerTokens} notify={notify} onEdit={onEdit} teams={teams} onWork={onWork} /> : <TeamOffers selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} onWork={onWork} />}</main>;
 }
 
 function Profile({ role, businessProfile, setBusinessProfile, teams, setTeams, selectedTeam, setSelectedTeam, teamTokens, setTeamTokens, ownerTokens, setOwnerTokens, notify }) {
@@ -844,23 +844,46 @@ function Landing({ onStart, onCatalog }) {
 }
 
 export default function App() {
+  const [user, setUser] = useState(null);
+  const [sessionReady, setSessionReady] = useState(false);
   const [view, setView] = useState("home");
   const [role, setRole] = useState("business");
   const [toast, setToast] = useState(null);
-  const [ownerTokens, setOwnerTokens] = useState(() => readJson("sana-owner-tokens", {}));
-  const [teamTokens, setTeamTokens] = useState(() => readJson("sana-team-tokens", {}));
+  const [ownerTokens, setOwnerTokens] = useState({});
+  const [teamTokens, setTeamTokens] = useState({});
   const [teams, setTeams] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(() => localStorage.getItem("sana-selected-team") || "");
   const [businessProfile, setBusinessProfile] = useState(() => readJson("sana-business-profile", { name: "", company: "", role: "", email: "", about: "" }));
   const [service, setService] = useState("checking");
   const [editingTask, setEditingTask] = useState(null);
 
+  function applySession(result) {
+    setUser(result.user);
+    if (result.user) {
+      setRole(result.user.role);
+      setBusinessProfile(result.user);
+      setTeams(result.teams);
+      setOwnerTokens(Object.fromEntries(result.owned_task_ids.map(id=>[id,"session"])));
+      setTeamTokens(Object.fromEntries(result.teams.map(team=>[team.id,"session"])));
+      setSelectedTeam(current=>result.teams.some(team=>team.id===current) ? current : result.teams[0]?.id || "");
+    }
+    setSessionReady(true);
+  }
+  async function refreshSession() { applySession(await api("/api/auth/me")); }
+  async function logout() {
+    try {
+      await api("/api/auth/logout",{method:"POST",body:{}});
+      ["sana-chat-draft","sana-owner-tokens","sana-team-tokens","sana-business-profile","sana-selected-team"].forEach(key=>localStorage.removeItem(key));
+      setUser(null);setOwnerTokens({});setTeamTokens({});setTeams([]);setEditingTask(null);setView("auth");
+    } catch(e) { notify(e.message,true); }
+  }
+
   function notify(text, error = false) {
     setToast({ text, error }); window.clearTimeout(window.__sanaToast); window.__sanaToast = window.setTimeout(() => setToast(null), 3500);
   }
   useEffect(() => {
     api("/api/health").then(() => setService("online")).catch(() => setService("offline"));
-    api("/api/teams").then((result) => setTeams(result.teams || [])).catch(() => {});
+    refreshSession().catch(()=>setSessionReady(true));
   }, []);
   useEffect(() => {
     if (role === "student" && view === "workspace") setView("catalog");
@@ -872,7 +895,7 @@ export default function App() {
   const nav = [
     ["home", "spark", "Главная"],
     ...(role === "business" ? [["workspace", "chat", "AI-конструктор"]] : []),
-    ["catalog", "catalog", "Каталог"], ["offers", "offers", role === "business" ? "Мои задачи" : "Мои отклики"], ["profile", "user", "Профиль"],
+    ["catalog", "catalog", "Каталог"], ["offers", "offers", role === "business" ? "Мои задачи" : "Мои отклики"], ["delivery", "chat", "Работа и решения"], ["profile", "user", "Профиль"],
   ];
   function editTask(task) {
     setEditingTask(task);
@@ -881,14 +904,16 @@ export default function App() {
   return <div className={`app ${view === "home" ? "app-landing" : ""}`}>
     <header className="topbar">
       <button className="brand" aria-label="SaNa — главная" onClick={() => setView("home")}><BrandGlyph /><span className="brand-caption">AI БІЛІМ АГЕНТІ</span></button>
-      <nav>{nav.map(([id,icon,label]) => <button aria-label={label} aria-current={view===id?"page":undefined} className={view===id?"active":""} key={id} onClick={()=>setView(id)}><Icon name={icon}/><span>{label}</span></button>)}</nav>
-      <div className="top-actions"><span className={`service ${service}`}><i />{service === "online" ? "Сервер работает" : service === "offline" ? "Нет связи" : "Проверяем"}</span><div className="role-switch"><button className={role==="business"?"active":""} onClick={()=>setRole("business")}>Бизнес</button><button className={role==="student"?"active":""} onClick={()=>setRole("student")}>Команда</button></div><button className="profile-mini" onClick={()=>setView("profile")}><span>{role === "business" ? (businessProfile.name || "Б").slice(0,1).toUpperCase() : (activeTeam?.name || "К").slice(0,1).toUpperCase()}</span><div><strong>{role === "business" ? businessProfile.name || "Ваш профиль" : activeTeam?.name || "Создать команду"}</strong><small>{role === "business" ? businessProfile.company || "Представитель бизнеса" : "Студенческая команда"}</small></div></button></div>
+      <nav>{nav.filter(([id])=>user || ["home","catalog"].includes(id)).map(([id,icon,label]) => <button aria-label={label} aria-current={view===id?"page":undefined} className={view===id?"active":""} key={id} onClick={()=>setView(id)}><Icon name={icon}/><span>{label}</span></button>)}</nav>
+      <div className="top-actions"><span className={`service ${service}`}><i />{service === "online" ? "Сервер работает" : service === "offline" ? "Нет связи" : "Проверяем"}</span>{user ? <><Notifications api={api} onNavigate={setView} notify={notify}/><button className="profile-mini" onClick={()=>setView("profile")}><span>{user.name.slice(0,1)}</span><div><strong>{user.name}</strong><small>{role === "business" ? "Бизнес" : activeTeam?.name || "Студент · создайте команду"}</small></div></button></> : <button className="primary-button" onClick={()=>setView("auth")}>Войти / Регистрация</button>}</div>
     </header>
-    {view === "workspace" && role === "business" && <ChatWorkspace key={editingTask?.id || "new"} notify={notify} ownerTokens={ownerTokens} setOwnerTokens={setOwnerTokens} businessProfile={businessProfile} editingTask={editingTask} onEditingFinished={()=>setEditingTask(null)} onPublished={()=>setView("offers")} />}
-    {view === "catalog" && <Catalog role={role} selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} onProfile={() => setView("profile")} />}
-    {view === "offers" && <Offers role={role} ownerTokens={ownerTokens} selectedTeam={selectedTeam} teamTokens={teamTokens} teams={teams} notify={notify} onEdit={editTask} />}
-    {view === "profile" && <Profile role={role} businessProfile={businessProfile} setBusinessProfile={setBusinessProfile} teams={teams} setTeams={setTeams} selectedTeam={selectedTeam} setSelectedTeam={setSelectedTeam} teamTokens={teamTokens} setTeamTokens={setTeamTokens} ownerTokens={ownerTokens} setOwnerTokens={setOwnerTokens} notify={notify} />}
-    {view === "home" && <Landing onStart={() => { setRole("business"); setView("workspace"); }} onCatalog={() => { setRole("student"); setView("catalog"); }} />}
+    {sessionReady && view === "auth" && <AuthScreen api={api} Mascot={SanaMascot} onLogin={result=>{applySession(result);setView(result.user.role === "business" ? "workspace" : "profile");}}/>}
+    {user && view === "workspace" && role === "business" && <ChatWorkspace key={editingTask?.id || "new"} notify={notify} ownerTokens={ownerTokens} setOwnerTokens={setOwnerTokens} businessProfile={businessProfile} editingTask={editingTask} onEditingFinished={()=>setEditingTask(null)} onPublished={()=>{refreshSession();setView("offers");}} />}
+    {view === "catalog" && <Catalog role={user ? role : "student"} selectedTeam={user ? selectedTeam : ""} teamTokens={teamTokens} notify={notify} onProfile={() => setView(user ? "profile" : "auth")} />}
+    {user && view === "offers" && <Offers role={role} ownerTokens={ownerTokens} selectedTeam={selectedTeam} teamTokens={teamTokens} teams={teams} notify={notify} onEdit={editTask} onWork={()=>setView("delivery")} />}
+    {user && view === "profile" && <AccountProfile user={user} teams={teams} api={api} refresh={refreshSession} selectedTeam={selectedTeam} selectTeam={setSelectedTeam} notify={notify} logout={logout}/>}
+    {user && view === "delivery" && <Delivery user={user} api={api} notify={notify} fields={FIELD_DEFS} Mascot={SanaMascot}/>}
+    {view === "home" && <Landing onStart={() => setView(user ? role === "business" ? "workspace" : "catalog" : "auth")} onCatalog={() => setView("catalog")} />}
     <Toast toast={toast} />
   </div>;
 }

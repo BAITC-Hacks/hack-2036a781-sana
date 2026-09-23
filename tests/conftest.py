@@ -17,6 +17,7 @@ TEST_TEAM_TOKEN = "team-token-for-api-tests-with-enough-length"
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
+    monkeypatch.setenv("SANA_LEGACY_MODE", "1")
     source = PROJECT_ROOT / "data"
     for filename in ("tasks.json", "teams.json", "proposals.json", "demo.json"):
         shutil.copy(source / filename, tmp_path / filename)
@@ -38,6 +39,7 @@ def client(tmp_path, monkeypatch):
 
 @pytest.fixture
 def fresh_client(tmp_path, monkeypatch):
+    monkeypatch.setenv("SANA_LEGACY_MODE", "1")
     """A real first run starts with no sample tasks or teams."""
     monkeypatch.setattr(store, "DATA_DIR", tmp_path)
     monkeypatch.setattr(store, "DATABASE_URL", "")
