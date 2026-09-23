@@ -342,3 +342,59 @@ body { color: var(--ink); background: radial-gradient(ellipse at 82% 4%, #0a1a11
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Team setup stays in the main flow so a new student can act immediately. */
+.team-setup { margin: 0 0 24px; padding: 16px 18px; border: 1px solid #2a392f; border-radius: 10px; background: #0d1510; }
+.team-setup summary { color: #eaf4ed; font-size: 14px; font-weight: 700; cursor: pointer; list-style-position: inside; }
+.team-setup summary::marker { color: #00df78; }
+.team-setup summary:focus-visible { outline: 2px solid #00df78; outline-offset: 5px; }
+.team-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-top: 18px; }
+.team-form label { display: grid; gap: 7px; color: #c3d0c6; font-size: 13px; font-weight: 600; }
+.team-form label:first-child { grid-column: 1 / -1; }
+.team-form button { justify-self: start; }
+.empty-state p { margin: 0 0 16px; }
+.empty-state .button { margin-top: 5px; }
+.button, .field-label, .card-field label, .proposal-form label { font-size: 13px; }
+.task-summary, .task-detail, .proposal-item p, .section-copy, .helper-text { font-size: 13px; }
+.proposal-form input, .proposal-form textarea { font-size: 14px; }
+.task-title { overflow-wrap: anywhere; }
+.tab { font-size: 14px; }
+.tab span { margin-left: 0; color: inherit; font: inherit; }
+.tab small { margin-left: 7px; color: #76867c; font-size: 10px; }
+.tab.active small { color: #00df78; }
+.filters label span, .task-detail strong { font-size: 12px; }
+.access-trigger { min-height: 38px; padding: 7px 11px; border: 1px solid #2b4032; border-radius: 6px; background: #102016; color: #bcefcf; font-size: 12px; font-weight: 700; cursor: pointer; }
+.access-trigger:hover { border-color: #00df78; color: #fff; }
+.access-trigger:focus-visible, .access-close:focus-visible, .team-setup summary:focus-visible { outline: 2px solid #00df78; outline-offset: 3px; }
+.access-dialog { width: min(520px, calc(100% - 24px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 22px; border: 1px solid #34503a; border-radius: 13px; background: #0c110e; color: #f5f7f6; box-shadow: 0 24px 90px #000a; }
+.access-dialog::backdrop { background: #000b; }
+.access-dialog-head { display: flex; align-items: start; justify-content: space-between; gap: 15px; }
+.access-dialog-head h2 { margin: 0; font-size: 21px; }
+.access-close { width: 32px; height: 32px; flex: 0 0 auto; border: 0; border-radius: 6px; background: #1c2820; color: #eff5f0; font-size: 24px; line-height: 1; cursor: pointer; }
+.access-copy { margin: 10px 0 18px; color: #a3b0a6; font-size: 13px; line-height: 1.5; }
+.access-list { display: grid; gap: 10px; }
+.access-entry { display: grid; gap: 8px; padding: 12px; border: 1px solid #2a372d; border-radius: 8px; background: #101812; }
+.access-entry > div { display: grid; gap: 3px; }
+.access-entry small { color: #00df78; font-size: 11px; }
+.access-entry strong { font-size: 14px; overflow-wrap: anywhere; }
+.access-entry code { max-height: 80px; overflow: auto; padding: 8px; border-radius: 5px; background: #060a07; color: #c8d8cc; font-size: 11px; overflow-wrap: anywhere; user-select: all; }
+.access-entry button { justify-self: start; }
+.access-empty { margin: 0; padding: 12px; border: 1px dashed #344339; border-radius: 7px; color: #a3b0a6; font-size: 13px; }
+.access-import { display: grid; gap: 9px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #26352a; }
+.access-import label { color: #e6efe8; font-size: 13px; font-weight: 700; }
+.access-import .button { justify-self: start; }
+@media (max-width: 760px) {
+  .topbar { flex-wrap: wrap; }
+  .topbar-right { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; flex: 1 0 100%; align-items: center; gap: 8px; }
+  .role-picker { min-width: 0; }
+  .role-picker select { width: 100%; min-width: 0; max-width: none; }
+  .access-dialog { padding: 17px; }
+  .access-import .button { width: 100%; }
+  .team-form { grid-template-columns: 1fr; }
+  .team-form label:first-child { grid-column: auto; }
+  .team-form button { width: 100%; }
+}
+@media (max-width: 390px) {
+  .topbar-right { gap: 5px; }
+  .access-trigger { padding: 7px 8px; font-size: 11px; }
+}

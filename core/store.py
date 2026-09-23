@@ -1,4 +1,4 @@
-"""Small JSON-file store for the five-hour MVP."""
+"""Atomic JSON storage for the live Sana workspace."""
 
 from __future__ import annotations
 
@@ -7,14 +7,24 @@ import logging
 import os
 import re
 import tempfile
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
+
 
 LOGGER = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = Path(os.getenv("TASKFORGE_DATA_DIR", PROJECT_ROOT / "data"))
+DATA_DIR = Path(os.getenv("SANA_DATA_DIR") or PROJECT_ROOT / ".sana-data")
+
+
+class DataStoreError(RuntimeError):
+    """Existing data cannot be read safely."""
 
 
 def _now() -> str:
@@ -27,7 +37,7 @@ def _path(name: str) -> Path:
 
 def _write_items(path: Path, items: list[dict]) -> bool:
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         with tempfile.NamedTemporaryFile(
             mode="w", encoding="utf-8", dir=path.parent, delete=False
         ) as temporary:
@@ -49,17 +59,38 @@ def _write_items(path: Path, items: list[dict]) -> bool:
 def _read_items(name: str) -> list[dict]:
     path = _path(name)
     if not path.exists():
-        _write_items(path, [])
         return []
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(value, list):
-            LOGGER.warning("Ожидался список в %s", path)
-            return []
+            raise DataStoreError(f"Ожидался список в {path}")
         return [item for item in value if isinstance(item, dict)]
-    except (OSError, json.JSONDecodeError):
-        LOGGER.warning("Не удалось прочитать JSON %s; возвращён пустой список", path)
-        return []
+    except (OSError, json.JSONDecodeError) as exc:
+        raise DataStoreError(f"Не удалось прочитать JSON {path}") from exc
+
+
+@contextmanager
+def _locked_items(name: str):
+    """Serialize read-modify-write across threads and worker processes."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (_path(name + ".lock")).open("a+") as lock_file:
+        if os.name == "nt":
+            lock_file.seek(0)
+            if not lock_file.read(1):
+                lock_file.write("0")
+                lock_file.flush()
+            lock_file.seek(0)
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
+        else:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            yield _read_items(name)
+        finally:
+            if os.name == "nt":
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def _next_id(items: list[dict], prefix: str) -> str:
@@ -84,32 +115,32 @@ def get_task(task_id: str) -> dict | None:
 def save_task(task: dict) -> dict:
     if not isinstance(task, dict):
         return {}
-    tasks = load_tasks()
-    saved = dict(task)
-    saved.setdefault("id", _next_id(tasks, "t"))
-    saved.setdefault("created_at", _now())
-    for index, existing in enumerate(tasks):
-        if existing.get("id") == saved["id"]:
-            tasks[index] = saved
-            break
-    else:
-        tasks.append(saved)
-    _write_items(_path("tasks.json"), tasks)
-    return saved
+    with _locked_items("tasks.json") as tasks:
+        saved = dict(task)
+        saved.setdefault("id", _next_id(tasks, "t"))
+        saved.setdefault("created_at", _now())
+        for index, existing in enumerate(tasks):
+            if existing.get("id") == saved["id"]:
+                saved["owner_token_hash"] = existing.get("owner_token_hash", "")
+                tasks[index] = saved
+                break
+        else:
+            tasks.append(saved)
+        return saved if _write_items(_path("tasks.json"), tasks) else {}
 
 
 def update_task(task_id: str, task: dict) -> dict | None:
     if not isinstance(task_id, str) or not isinstance(task, dict):
         return None
-    tasks = load_tasks()
-    for index, existing in enumerate(tasks):
-        if existing.get("id") == task_id:
-            updated = dict(task)
-            updated["id"] = task_id
-            updated["created_at"] = existing.get("created_at", _now())
-            tasks[index] = updated
-            _write_items(_path("tasks.json"), tasks)
-            return updated
+    with _locked_items("tasks.json") as tasks:
+        for index, existing in enumerate(tasks):
+            if existing.get("id") == task_id:
+                updated = dict(task)
+                updated["id"] = task_id
+                updated["created_at"] = existing.get("created_at", _now())
+                updated["owner_token_hash"] = existing.get("owner_token_hash", "")
+                tasks[index] = updated
+                return updated if _write_items(_path("tasks.json"), tasks) else None
     return None
 
 
@@ -117,14 +148,19 @@ def load_teams() -> list[dict]:
     return _read_items("teams.json")
 
 
-def load_demo() -> dict:
-    path = _path("demo.json")
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-        return value if isinstance(value, dict) else {}
-    except (OSError, json.JSONDecodeError):
-        LOGGER.warning("Не удалось прочитать демонстрационный пример %s", path)
+def get_team(team_id: str) -> dict | None:
+    return next((team for team in load_teams() if team.get("id") == team_id), None)
+
+
+def save_team(team: dict) -> dict:
+    if not isinstance(team, dict):
         return {}
+    with _locked_items("teams.json") as teams:
+        saved = dict(team)
+        saved["id"] = _next_id(teams, "team")
+        saved["created_at"] = _now()
+        teams.append(saved)
+        return saved if _write_items(_path("teams.json"), teams) else {}
 
 
 def load_proposals(task_id: str | None = None) -> list[dict]:
@@ -137,25 +173,23 @@ def load_proposals(task_id: str | None = None) -> list[dict]:
 def save_proposal(proposal: dict) -> dict:
     if not isinstance(proposal, dict):
         return {}
-    proposals = load_proposals()
-    saved = dict(proposal)
-    saved.setdefault("id", _next_id(proposals, "p"))
-    saved.setdefault("created_at", _now())
-    saved["status"] = "new"
-    proposals.append(saved)
-    _write_items(_path("proposals.json"), proposals)
-    return saved
+    with _locked_items("proposals.json") as proposals:
+        saved = dict(proposal)
+        saved.setdefault("id", _next_id(proposals, "p"))
+        saved.setdefault("created_at", _now())
+        saved["status"] = "new"
+        proposals.append(saved)
+        return saved if _write_items(_path("proposals.json"), proposals) else {}
 
 
 def update_proposal_status(proposal_id: str, status: str) -> dict | None:
     if status not in {"accepted", "rejected"}:
         return None
-    proposals = load_proposals()
-    for proposal in proposals:
-        if proposal.get("id") == proposal_id:
-            proposal["status"] = status
-            _write_items(_path("proposals.json"), proposals)
-            return proposal
+    with _locked_items("proposals.json") as proposals:
+        for proposal in proposals:
+            if proposal.get("id") == proposal_id and proposal.get("status") == "new":
+                proposal["status"] = status
+                return proposal if _write_items(_path("proposals.json"), proposals) else None
     return None
 
 
@@ -166,27 +200,24 @@ def load_progress() -> list[dict]:
 def save_progress(progress: dict) -> dict:
     if not isinstance(progress, dict):
         return {}
-    entries = load_progress()
-    saved = dict(progress)
-    saved.setdefault("id", _next_id(entries, "progress"))
-    saved.setdefault("created_at", _now())
-    saved.setdefault("status", "submitted")
-    saved.setdefault("points", 0)
-    entries.append(saved)
-    _write_items(_path("progress.json"), entries)
-    return saved
+    with _locked_items("progress.json") as entries:
+        saved = dict(progress)
+        saved.setdefault("id", _next_id(entries, "progress"))
+        saved.setdefault("created_at", _now())
+        saved.setdefault("status", "submitted")
+        saved.setdefault("points", 0)
+        entries.append(saved)
+        return saved if _write_items(_path("progress.json"), entries) else {}
 
 
 def update_progress_status(progress_id: str, status: str, points: int = 0) -> dict | None:
     if status not in {"confirmed", "rejected"}:
         return None
-    entries = load_progress()
-    for entry in entries:
-        if entry.get("id") == progress_id and entry.get("status") == "submitted":
-            entry["status"] = status
-            entry["points"] = points if status == "confirmed" else 0
-            entry["reviewed_at"] = _now()
-            if not _write_items(_path("progress.json"), entries):
-                return None
-            return entry
+    with _locked_items("progress.json") as entries:
+        for entry in entries:
+            if entry.get("id") == progress_id and entry.get("status") == "submitted":
+                entry["status"] = status
+                entry["points"] = points if status == "confirmed" else 0
+                entry["reviewed_at"] = _now()
+                return entry if _write_items(_path("progress.json"), entries) else None
     return None

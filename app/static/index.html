@@ -14,6 +14,7 @@
       <div class="topbar-right">
         <label class="role-picker"><span data-i18n="role">Роль</span><select id="role-switch" aria-label="Выбрать роль" data-i18n-aria-label="roleSwitcher"><option value="business" data-i18n="roleBusiness">Бизнес</option><option value="student" data-i18n="roleStudent">Студенческая команда</option></select></label>
         <label class="language-picker"><span data-i18n="language">Язык</span><select id="language-switch" aria-label="Язык интерфейса" data-i18n-aria-label="language"><option value="ru">RU</option><option value="kk">KZ</option><option value="en">EN</option></select></label>
+        <button id="open-access" class="access-trigger" type="button" aria-haspopup="dialog" data-i18n="accessButton">Доступ</button>
         <span id="service-status" class="service-status" data-state="loading" role="status" aria-live="polite" data-i18n="serviceChecking">Проверяем сервер</span>
       </div>
     </header>
@@ -37,7 +38,6 @@
       <section id="view-business" class="view active">
         <div class="section-heading">
           <div><p class="eyebrow" data-i18n="businessStep">01 / СОЗДАНИЕ ЗАДАЧИ</p><h2 data-i18n="businessHeading">Расскажите, что нужно решить</h2></div>
-          <button id="load-demo" class="button button-quiet" type="button"><span data-i18n="demoButton">Загрузить пример</span><span aria-hidden="true">↗</span></button>
         </div>
         <div class="builder-grid">
           <div class="builder-main">
@@ -107,8 +107,18 @@
           <label for="active-team" data-i18n="teamPicker">Моя команда</label>
           <select id="active-team" class="input" aria-label="Моя команда" data-i18n-aria-label="teamPicker"></select>
         </div>
+        <details id="team-setup" class="team-setup hidden">
+          <summary data-i18n="createTeam">Создать команду</summary>
+          <form id="team-form" class="team-form">
+            <label><span data-i18n="teamName">Название команды</span><input class="input" name="name" maxlength="100" required data-i18n-placeholder="teamNamePlaceholder" placeholder="Например, Sana Lab"></label>
+            <label><span data-i18n="teamInterests">Темы интереса</span><input class="input" name="interests" maxlength="300" data-i18n-placeholder="teamInterestsPlaceholder" placeholder="Образование, аналитика"></label>
+            <label><span data-i18n="teamSkills">Навыки</span><input class="input" name="skills" maxlength="300" data-i18n-placeholder="teamSkillsPlaceholder" placeholder="Python, дизайн"></label>
+            <label><span data-i18n="teamTech">Технологии</span><input class="input" name="technologies" maxlength="300" data-i18n-placeholder="teamTechPlaceholder" placeholder="FastAPI, Figma"></label>
+            <button class="button button-primary" type="submit" data-i18n="saveTeam">Создать команду</button>
+          </form>
+        </details>
         <section id="student-progress" class="student-progress hidden">
-          <div class="section-heading"><div><p class="eyebrow" data-i18n="selectedByBusiness">ПОСЛЕ ВЫБОРА БИЗНЕСОМ</p><h2 data-i18n="teamProgressHeading">Прогресс моей команды</h2><p class="section-copy" data-i18n="teamProgressCopy">Отправьте конкретный результат этапа и ссылку-доказательство. Баллы появятся только после подтверждения бизнеса.</p></div></div>
+          <div class="section-heading"><div><p class="eyebrow" data-i18n="teamWorkStep">МОЯ КОМАНДА</p><h2 data-i18n="teamWorkHeading">Наши предложения</h2><p class="section-copy" data-i18n="teamWorkCopy">Здесь видно решение бизнеса. После выбора команды можно отправлять результаты работы.</p></div></div>
           <div id="student-progress-list" class="proposal-list"></div>
         </section>
         <div id="catalog-list" class="task-list"></div>
@@ -126,6 +136,16 @@
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
       <footer class="footer"><span>Sana</span><span data-i18n="footerPromise">Прозрачный рейтинг · Бизнес принимает решение · Факты не выдумываются</span></footer>
     </main>
+    <dialog id="access-dialog" class="access-dialog" aria-labelledby="access-title">
+      <div class="access-dialog-head"><h2 id="access-title" data-i18n="accessTitle">Доступ на другом устройстве</h2><button id="close-access" class="access-close" type="button" data-i18n-aria-label="close" aria-label="Закрыть">×</button></div>
+      <p class="access-copy" data-i18n="accessCopy">Скопируйте код задачи или команды. Вставьте его в Sana на другом устройстве.</p>
+      <div id="access-list" class="access-list"></div>
+      <form id="access-import" class="access-import">
+        <label for="access-code" data-i18n="accessImportLabel">Восстановить доступ по коду</label>
+        <input id="access-code" class="input" name="access_code" autocomplete="off" spellcheck="false" data-i18n-placeholder="accessPlaceholder" placeholder="task:t_001:..." required>
+        <button class="button button-primary" type="submit" data-i18n="accessImportButton">Восстановить</button>
+      </form>
+    </dialog>
     <script src="/static/i18n.js" defer></script>
     <script src="/static/app.js" defer></script>
   </body>
