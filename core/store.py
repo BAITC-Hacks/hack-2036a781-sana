@@ -73,11 +73,14 @@ def _read_items(name: str) -> list[dict]:
 def _locked_items(name: str):
     """Serialize read-modify-write across threads and worker processes."""
     DATA_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
-    with (_path(name + ".lock")).open("a+") as lock_file:
+    # Binary append mode lets Windows inspect the file length without reading a
+    # byte that another process may already have locked.  Reading that byte
+    # before msvcrt.locking raised PermissionError under concurrent requests.
+    with (_path(name + ".lock")).open("a+b") as lock_file:
         if os.name == "nt":
-            lock_file.seek(0)
-            if not lock_file.read(1):
-                lock_file.write("0")
+            lock_file.seek(0, os.SEEK_END)
+            if lock_file.tell() == 0:
+                lock_file.write(b"0")
                 lock_file.flush()
             lock_file.seek(0)
             msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
