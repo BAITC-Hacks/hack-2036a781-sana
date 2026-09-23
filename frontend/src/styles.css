@@ -88,17 +88,16 @@ h1, h2, h3 { letter-spacing: -.035em; line-height: 1.25; }
 .typing { display: inline-flex; gap: 4px; margin-left: 6px; }.typing i,.thought-dots i { width: 3px; height: 3px; background: currentColor; animation: pulse 1s infinite alternate; }.typing i:nth-child(2),.thought-dots i:nth-child(2) { animation-delay: .2s; }
 .live-dot { display: flex; align-items: center; gap: 5px; font-size: 9px; color: #7c8b80; }.live-dot i { background: #27a862; }
 .empty-preview { margin: auto; padding: 28px; text-align: center; max-width: 440px; }.empty-preview h3 { font-size: 25px; margin: 12px 0; }.empty-preview p { font-size: 14px; line-height: 1.8; color: #68786d; margin: 0; }
-.empty-preview .reference-mascot { background: #04120b; border-radius: 22px; padding: 10px; width: 145px; margin: 0 auto 23px; }
+.empty-preview .reference-mascot { width: 145px; margin: 0 auto 23px; }
 .assistant-kicker { color: #287f50; font-size: 9px; letter-spacing: .08em; font-weight: 700; }
 
 /* Actual reference head, animated pixel expressions. */
 .reference-mascot { position: relative; width: 160px; aspect-ratio: 165/137; margin: 0 auto 20px; animation: float 6s ease-in-out infinite; }
-.reference-head { width: 100%; height: 100%; display: block; overflow: hidden; border-radius: 5px; }
-.reference-face-mask { fill: #000c08; }
+.reference-head { width: 100%; height: 100%; display: block; overflow: visible; }
 .sana-face { position: absolute; left: 21%; top: 52%; width: 54%; height: 31%; color: #16e68a; }
 .sana-eye { position: absolute; top: 25%; width: 23%; height: 28%; border: 4px solid currentColor; border-bottom: 0; border-radius: 50% 50% 0 0; animation: blink 5s infinite; }
 .sana-eye-left { left: 9%; }.sana-eye-right { right: 9%; }
-.sana-mouth { position: absolute; left: 39%; top: 76%; width: 22%; height: 7%; background: currentColor; border: 0; border-radius: 0; clip-path: polygon(0 0,25% 0,25% 50%,75% 50%,75% 0,100% 0,100% 60%,75% 60%,75% 100%,25% 100%,25% 60%,0 60%); }
+.sana-mouth { position: absolute; left: 39%; top: 76%; width: 22%; height: 14%; background: currentColor; border: 0; border-radius: 0; clip-path: polygon(0 0,25% 0,25% 50%,75% 50%,75% 0,100% 0,100% 60%,75% 60%,75% 100%,25% 100%,25% 60%,0 60%); }
 .sana-face-thinking .sana-eye,.sana-face-sleeping .sana-eye { height: 10%; top: 43%; border: 0; border-bottom: 3px solid currentColor; border-radius: 0; animation: none; }
 .sana-face-curious .sana-eye,.sana-face-worried .sana-eye { width: 15%; height: 40%; border: 3px solid currentColor; border-radius: 0; }
 .sana-face-worried { color: #ffc07a; }.sana-face-worried .sana-mouth { transform: rotate(180deg); }
@@ -108,7 +107,6 @@ h1, h2, h3 { letter-spacing: -.035em; line-height: 1.25; }
 .thought-dots { position: absolute; display: flex; gap: 4px; top: -15%; right: 0; }
 .sana-mascot-compact { width: 34px; height: 30px; margin: 0; animation: none; }
 .sana-mascot-compact .sana-eye { border-width: 1px; }.sana-mascot-compact .sleep-z { font-size: 7px; }
-.empty-preview .sana-face { left: 24%; top: 51%; width: 49%; height: 27%; }
 @keyframes blink { 0%,43%,47%,100% { transform: scaleY(1); } 45% { transform: scaleY(.1); } }
 @keyframes float { 50% { transform: translateY(-4px); } }
 @keyframes pulse { to { opacity: .35; } }
