@@ -29,6 +29,18 @@
   </p>
 </details>
 
+## Видео проекта
+
+<p align="center">
+  <a href="docs/media/sana-platform-animation.mp4">
+    <img alt="Посмотреть короткое видео SaNa" src="docs/images/sana-video-cover.jpg">
+  </a>
+</p>
+
+<p align="center">
+  <a href="docs/media/sana-platform-animation.mp4"><strong>▶ Открыть короткое Full HD видео SaNa</strong></a>
+</p>
+
 ## Коротко: что это за продукт
 
 SaNa — рабочий веб-MVP по кейсу HackAlem AI о геймификации практических заданий и качестве бизнес-задач. Он соединяет две стороны:
