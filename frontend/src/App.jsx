@@ -138,7 +138,7 @@ function RatingPanel({ rating }) {
   );
 }
 
-function CardEditor({ card, setCard, onPublish, busy, businessProfile }) {
+function CardEditor({ card, setCard, onPublish, busy, businessProfile, editing = false }) {
   const applyProfile = () => {
     if (!businessProfile?.name && !businessProfile?.email) return;
     setCard((current) => ({
@@ -182,7 +182,7 @@ function CardEditor({ card, setCard, onPublish, busy, businessProfile }) {
           <RatingPanel rating={card.rating} />
           <div className="publish-bar">
             <div><Icon name="check" /><span><strong>Публикация только вручную</strong><small>Проверьте факты перед подтверждением</small></span></div>
-            <button className="primary-button" type="button" disabled={busy} onClick={onPublish}>{busy ? "Сохраняем…" : "Подтвердить и опубликовать"}</button>
+            <button className="primary-button" type="button" disabled={busy} onClick={onPublish}>{busy ? "Сохраняем…" : editing ? "Сохранить изменения" : "Подтвердить и опубликовать"}</button>
           </div>
         </div>
       )}
@@ -190,24 +190,30 @@ function CardEditor({ card, setCard, onPublish, busy, businessProfile }) {
   );
 }
 
-function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, onPublished }) {
-  const [messages, setMessages] = useState([
+function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, onPublished, editingTask, onEditingFinished }) {
+  const savedDraft = readJson("sana-chat-draft", { text: "", industry: "online_school" });
+  const [messages, setMessages] = useState(editingTask ? [
+    { role: "ai", text: "Задача открыта для редактирования. Измените поля справа — рейтинг пересчитается автоматически." },
+  ] : [
     { role: "ai", text: "Привет! Я Sana. Опишите бизнес-задачу своими словами — я найду пробелы и задам минимум три точных вопроса." },
   ]);
-  const [composer, setComposer] = useState("");
-  const [industry, setIndustry] = useState("online_school");
+  const [composer, setComposer] = useState(editingTask ? "" : savedDraft.text || "");
+  const [industry, setIndustry] = useState(editingTask?.industry || savedDraft.industry || "online_school");
   const [questions, setQuestions] = useState([]);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [draft, setDraft] = useState("");
-  const [phase, setPhase] = useState("draft");
-  const [card, setCard] = useState(null);
-  const [source, setSource] = useState("");
+  const [phase, setPhase] = useState(editingTask ? "card" : "draft");
+  const [card, setCard] = useState(editingTask ? { ...initialCard(), ...editingTask } : null);
+  const [source, setSource] = useState(editingTask ? "saved" : "");
   const [busy, setBusy] = useState(false);
   const endRef = useRef(null);
 
   const cardFingerprint = card ? FIELD_DEFS.map(([key]) => card[key] || "").concat(card.industry || "").join("\u0001") : "";
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, busy]);
+  useEffect(() => {
+    if (phase === "draft") saveJson("sana-chat-draft", { text: composer, industry });
+  }, [composer, industry, phase]);
   useEffect(() => {
     if (!card) return undefined;
     const timer = setTimeout(async () => {
@@ -255,6 +261,7 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
     }
     if (phase === "draft") {
       setDraft(text);
+      try { localStorage.removeItem("sana-chat-draft"); } catch { /* Continue without persistence. */ }
       setComposer("");
       append({ role: "user", text });
       setBusy(true);
@@ -297,11 +304,16 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
     if (!card?.title?.trim()) return notify("Добавьте название задачи", true);
     setBusy(true);
     try {
-      const result = await api("/api/tasks", { method: "POST", body: { card } });
-      const nextTokens = { ...ownerTokens, [result.task.id]: result.owner_token };
-      setOwnerTokens(nextTokens);
-      saveJson("sana-owner-tokens", nextTokens);
-      notify("Задача подтверждена и появилась в открытом каталоге");
+      const result = editingTask
+        ? await api(`/api/tasks/${encodeURIComponent(editingTask.id)}`, { method: "PUT", body: { card }, ownerToken: ownerTokens[editingTask.id] })
+        : await api("/api/tasks", { method: "POST", body: { card } });
+      if (!editingTask) {
+        const nextTokens = { ...ownerTokens, [result.task.id]: result.owner_token };
+        setOwnerTokens(nextTokens);
+        saveJson("sana-owner-tokens", nextTokens);
+      }
+      notify(editingTask ? "Изменения сохранены, рейтинг пересчитан" : "Задача подтверждена и появилась в открытом каталоге");
+      onEditingFinished?.();
       onPublished();
     } catch (error) { notify(error.message, true); }
     finally { setBusy(false); }
@@ -310,6 +322,8 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
   function reset() {
     setMessages([{ role: "ai", text: "Начнём заново. Опишите задачу одним сообщением." }]);
     setComposer(""); setQuestions([]); setAnswers({}); setQuestionIndex(0); setDraft(""); setCard(null); setPhase("draft"); setSource("");
+    try { localStorage.removeItem("sana-chat-draft"); } catch { /* Ignore storage failures. */ }
+    onEditingFinished?.();
   }
 
   return (
@@ -317,7 +331,7 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
       <section className="chat-panel">
         <header className="panel-heading chat-heading">
           <div><span className="eyebrow">AI-КОНСТРУКТОР</span><h2>Диалог с Sana</h2></div>
-          <div className="chat-actions"><span className={`source-badge ${source}`}>{source === "ai" ? "AI" : source === "fallback" ? "Резервный режим" : "онлайн"}</span><button className="icon-button" onClick={reset} title="Начать заново"><Icon name="refresh" /></button></div>
+          <div className="chat-actions">{phase === "questions" && <span className="source-badge">Вопрос {questionIndex + 1}/{questions.length}</span>}<span className={`source-badge ${source}`}>{source === "ai" ? "AI" : source === "fallback" ? "Резервный режим" : source === "saved" ? "Редактирование" : "онлайн"}</span><button className="icon-button" onClick={reset} title="Начать заново"><Icon name="refresh" /></button></div>
         </header>
         <div className="industry-row">
           <label>Тема задачи</label>
@@ -352,7 +366,7 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
           </div>
         </div>
       </section>
-      <CardEditor card={card} setCard={setCard} onPublish={publish} busy={busy} businessProfile={businessProfile} />
+      <CardEditor card={card} setCard={setCard} onPublish={publish} busy={busy} businessProfile={businessProfile} editing={Boolean(editingTask)} />
     </main>
   );
 }
@@ -384,6 +398,7 @@ function ProposalForm({ task, selectedTeam, teamTokens, notify, onDone }) {
 
 function Catalog({ role, selectedTeam, teamTokens, notify }) {
   const [tasks, setTasks] = useState([]);
+  const [recommendations, setRecommendations] = useState({});
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ industry: "", level: "", sort: "rating" });
   const [expanded, setExpanded] = useState("");
@@ -397,19 +412,28 @@ function Catalog({ role, selectedTeam, teamTokens, notify }) {
     finally { setLoading(false); }
   }
   useEffect(() => { load(); }, [filters.industry, filters.level, filters.sort]);
+  useEffect(() => {
+    if (role !== "student" || !selectedTeam) { setRecommendations({}); return; }
+    api(`/api/recommendations?team_id=${encodeURIComponent(selectedTeam)}`)
+      .then((result) => setRecommendations(result.reason || {}))
+      .catch(() => setRecommendations({}));
+  }, [role, selectedTeam]);
+  const visibleTasks = role === "student" && Object.keys(recommendations).length
+    ? [...tasks].sort((a, b) => Number(Boolean(recommendations[b.id])) - Number(Boolean(recommendations[a.id])))
+    : tasks;
   return <main className="page-shell">
     <header className="page-hero"><div><span className="eyebrow">ОТКРЫТЫЙ КАТАЛОГ</span><h1>Задачи, готовые к работе</h1><p>Низкий рейтинг ничего не скрывает — любая команда может откликнуться.</p></div><button className="outline-button" onClick={load}><Icon name="refresh" /> Обновить</button></header>
     <div className="filter-bar">
       <select value={filters.industry} onChange={(e) => setFilters({ ...filters, industry: e.target.value })}><option value="">Все отрасли</option>{Object.entries(INDUSTRIES).map(([v,l]) => <option value={v} key={v}>{l}</option>)}</select>
       <select value={filters.level} onChange={(e) => setFilters({ ...filters, level: e.target.value })}><option value="">Любая готовность</option>{Object.entries(LEVELS).map(([v,[l]]) => <option value={v} key={v}>{l}</option>)}</select>
       <select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })}><option value="rating">Сначала высокий рейтинг</option><option value="date">Сначала новые</option></select>
-      <span>{tasks.length} задач</span>
+      <span>{tasks.length} задач{role === "student" && Object.keys(recommendations).length ? " · рекомендации сверху" : ""}</span>
     </div>
     {loading ? <div className="loading-grid">Загружаем каталог…</div> : !tasks.length ? <Empty title="Пока нет опубликованных задач" text="Создайте первую задачу в AI-конструкторе." /> : (
-      <div className="task-grid">{tasks.map((task) => {
+      <div className="task-grid">{visibleTasks.map((task) => {
         const isOpen = expanded === task.id;
         return <article className={`task-card ${isOpen ? "expanded" : ""}`} key={task.id}>
-          <div className="task-top"><span className="industry-pill">{INDUSTRIES[task.industry] || task.industry}</span><ScoreRing compact rating={task.rating} /></div>
+          <div className="task-top"><span className="industry-pill">{recommendations[task.id] ? `Рекомендовано · ${recommendations[task.id].matched_profile_terms} совп.` : INDUSTRIES[task.industry] || task.industry}</span><ScoreRing compact rating={task.rating} /></div>
           <h3>{task.title}</h3><p>{task.need || task.context || "Описание уточняется"}</p>
           <div className="task-meta"><span style={{ color: LEVELS[task.rating?.level]?.[1] }}>● {LEVELS[task.rating?.level]?.[0]}</span><span>{new Date(task.created_at).toLocaleDateString("ru-RU")}</span></div>
           <button className="details-button" onClick={() => setExpanded(isOpen ? "" : task.id)}>Подробнее <Icon name="arrow" /></button>
@@ -428,7 +452,7 @@ function Empty({ title, text }) {
   return <div className="empty-page"><div><Icon name="spark" /></div><h3>{title}</h3><p>{text}</p></div>;
 }
 
-function BusinessOffers({ ownerTokens, notify, onEdit }) {
+function BusinessOffers({ ownerTokens, notify, onEdit, teams }) {
   const [groups, setGroups] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -463,9 +487,9 @@ function BusinessOffers({ ownerTokens, notify, onEdit }) {
   return <>
     {!!leaderboard.length && <div className="leaderboard"><div><span className="eyebrow">ПРОГРЕСС КОМАНД</span><h3>Таблица подтверждённых результатов</h3></div>{leaderboard.slice(0,5).map((team,index) => <div className="leader-row" key={team.id}><b>{index + 1}</b><span>{team.name}</span><strong>{team.progress_points} баллов</strong></div>)}</div>}
     <div className="offer-groups">{groups.map(({ task, proposals }) => <section className="offer-group" key={task.id}>
-      <header><div><span className="eyebrow">{INDUSTRIES[task.industry]}</span><h2>{task.title}</h2></div><div className="offer-count">{proposals.length}<small>откликов</small></div></header>
+      <header><div><span className="eyebrow">{INDUSTRIES[task.industry]}</span><h2>{task.title}</h2><button className="text-button" type="button" onClick={() => onEdit(task)}>Редактировать и пересчитать рейтинг</button></div><div className="offer-count">{proposals.length}<small>откликов</small></div></header>
       {!proposals.length ? <p className="soft-empty">Откликов пока нет — задача доступна всем командам.</p> : proposals.map((proposal) => <article className="offer-card" key={proposal.id}>
-        <div className="offer-head"><strong>Команда {proposal.team_id}</strong><span className={`status ${proposal.status}`}>{proposal.status === "new" ? "Новое" : proposal.status === "accepted" ? "Выбрано" : "Отклонено"}</span></div>
+        <div className="offer-head"><strong>{teams.find((team) => team.id === proposal.team_id)?.name || `Команда ${proposal.team_id}`}</strong><span className={`status ${proposal.status}`}>{proposal.status === "new" ? "Новое" : proposal.status === "accepted" ? "Выбрано" : "Отклонено"}</span></div>
         <p><b>Идея:</b> {proposal.idea}</p><p><b>План:</b> {proposal.plan}</p><div className="offer-meta"><span>Срок: {proposal.deadline}</span><a href={proposal.link} target="_blank" rel="noreferrer">Прототип ↗</a></div>
         {proposal.status === "new" && <div className="button-row"><button className="primary-button small" onClick={() => decide(task.id, proposal.id, "accepted")}>Выбрать</button><button className="ghost-button" onClick={() => decide(task.id, proposal.id, "rejected")}>Отклонить</button></div>}
         {proposal.progress.map((entry) => <div className="progress-entry" key={entry.id}><div><b>Результат этапа</b><p>{entry.result}</p><a href={entry.evidence_link} target="_blank" rel="noreferrer">Открыть доказательство ↗</a></div><span className={`status ${entry.status}`}>{entry.status === "submitted" ? "К проверке" : entry.status === "confirmed" ? `+${entry.points} баллов` : "Отклонено"}</span>{entry.status === "submitted" && <div className="button-row"><button className="primary-button small" onClick={() => decideProgress(task.id, entry.id, "confirmed")}>Подтвердить</button><button className="ghost-button" onClick={() => decideProgress(task.id, entry.id, "rejected")}>Отклонить</button></div>}</div>)}
@@ -507,15 +531,37 @@ function TeamOffers({ selectedTeam, teamTokens, notify }) {
   </section>)}</div>;
 }
 
-function Offers({ role, ownerTokens, selectedTeam, teamTokens, notify }) {
-  return <main className="page-shell"><header className="page-hero"><div><span className="eyebrow">{role === "business" ? "ПРОСТРАНСТВО БИЗНЕСА" : "МОЯ КОМАНДА"}</span><h1>{role === "business" ? "Предложения и решения" : "Наши отклики и прогресс"}</h1><p>{role === "business" ? "Сравнивайте идеи и выбирайте одну, несколько или ни одной команды." : "Следите за решением бизнеса и отправляйте подтверждённые результаты."}</p></div></header>{role === "business" ? <BusinessOffers ownerTokens={ownerTokens} notify={notify} /> : <TeamOffers selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} />}</main>;
+function Offers({ role, ownerTokens, selectedTeam, teamTokens, notify, teams, onEdit }) {
+  return <main className="page-shell"><header className="page-hero"><div><span className="eyebrow">{role === "business" ? "ПРОСТРАНСТВО БИЗНЕСА" : "МОЯ КОМАНДА"}</span><h1>{role === "business" ? "Предложения и решения" : "Наши отклики и прогресс"}</h1><p>{role === "business" ? "Сравнивайте идеи и выбирайте одну, несколько или ни одной команды." : "Следите за решением бизнеса и отправляйте подтверждённые результаты."}</p></div></header>{role === "business" ? <BusinessOffers ownerTokens={ownerTokens} notify={notify} onEdit={onEdit} teams={teams} /> : <TeamOffers selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} />}</main>;
 }
 
-function Profile({ role, businessProfile, setBusinessProfile, teams, setTeams, selectedTeam, setSelectedTeam, teamTokens, setTeamTokens, notify }) {
+function Profile({ role, businessProfile, setBusinessProfile, teams, setTeams, selectedTeam, setSelectedTeam, teamTokens, setTeamTokens, ownerTokens, setOwnerTokens, notify }) {
   const [form, setForm] = useState(businessProfile);
   const [teamForm, setTeamForm] = useState({ name: "", interests: "", skills: "", technologies: "" });
+  const [accessCode, setAccessCode] = useState("");
   function saveBusiness(event) {
     event.preventDefault(); setBusinessProfile(form); saveJson("sana-business-profile", form); notify("Профиль бизнеса сохранён");
+  }
+  async function copyAccess(kind, id, token) {
+    const code = `${kind}:${id}:${token}`;
+    try { await navigator.clipboard.writeText(code); notify("Код доступа скопирован"); }
+    catch { setAccessCode(code); notify("Скопируйте код из поля вручную"); }
+  }
+  async function restoreAccess(event) {
+    event.preventDefault();
+    const match = accessCode.trim().match(/^(task|team):([^:]+):(.+)$/);
+    if (!match) return notify("Неверный формат кода доступа", true);
+    const [, kind, id, token] = match;
+    try {
+      if (kind === "task") {
+        await api(`/api/tasks/${encodeURIComponent(id)}/proposals`, { ownerToken: token });
+        const next = { ...ownerTokens, [id]: token }; setOwnerTokens(next); saveJson("sana-owner-tokens", next);
+      } else {
+        await api(`/api/teams/${encodeURIComponent(id)}/proposals`, { teamToken: token });
+        const next = { ...teamTokens, [id]: token }; setTeamTokens(next); saveJson("sana-team-tokens", next); setSelectedTeam(id); localStorage.setItem("sana-selected-team", id);
+      }
+      setAccessCode(""); notify("Доступ восстановлен и проверен сервером");
+    } catch (error) { notify(error.message, true); }
   }
   async function createTeam(event) {
     event.preventDefault();
@@ -534,6 +580,15 @@ function Profile({ role, businessProfile, setBusinessProfile, teams, setTeams, s
       <form className="profile-card team-create" onSubmit={createTeam}><div className="profile-avatar"><Icon name="plus" /></div><div className="profile-fields"><h2>Новая команда</h2><label className="full">Название<input value={teamForm.name} onChange={(e)=>setTeamForm({...teamForm,name:e.target.value})} placeholder="Sana Lab" required /></label><label className="full">Интересы<input value={teamForm.interests} onChange={(e)=>setTeamForm({...teamForm,interests:e.target.value})} placeholder="Образование, аналитика" /></label><label>Навыки<input value={teamForm.skills} onChange={(e)=>setTeamForm({...teamForm,skills:e.target.value})} placeholder="Python, UX" /></label><label>Технологии<input value={teamForm.technologies} onChange={(e)=>setTeamForm({...teamForm,technologies:e.target.value})} placeholder="FastAPI, React" /></label><button className="primary-button">Создать команду</button></div></form>
       <section className="owned-teams"><span className="eyebrow">МОИ КОМАНДЫ</span><h2>Рабочий профиль</h2>{!ownedTeams.length ? <p>Создайте первую команду, чтобы отправлять предложения.</p> : ownedTeams.map((team)=><button className={`team-select-card ${selectedTeam===team.id?"active":""}`} key={team.id} onClick={()=>{setSelectedTeam(team.id);localStorage.setItem("sana-selected-team",team.id);}}><span>{team.name.slice(0,1)}</span><div><strong>{team.name}</strong><small>{[...(team.skills||[]),...(team.technologies||[])].join(" · ") || "Профиль команды"}</small></div>{selectedTeam===team.id&&<Icon name="check"/>}</button>)}</section>
     </div>}
+    <section className="offer-group access-card">
+      <div><span className="eyebrow">ДОСТУП С ДРУГОГО УСТРОЙСТВА</span><h2>Резервные коды</h2><p>Код даёт право управлять задачей или командой. Передавайте его только себе и участникам команды.</p></div>
+      <div className="access-list">
+        {Object.entries(ownerTokens).map(([id, token]) => <button className="ghost-button" type="button" key={`task-${id}`} onClick={() => copyAccess("task", id, token)}>Задача {id} · скопировать код</button>)}
+        {Object.entries(teamTokens).map(([id, token]) => <button className="ghost-button" type="button" key={`team-${id}`} onClick={() => copyAccess("team", id, token)}>{teams.find((team) => team.id === id)?.name || `Команда ${id}`} · скопировать код</button>)}
+        {!Object.keys(ownerTokens).length && !Object.keys(teamTokens).length && <span>Коды появятся после создания задачи или команды.</span>}
+      </div>
+      <form className="progress-form access-import" onSubmit={restoreAccess}><input value={accessCode} onChange={(event) => setAccessCode(event.target.value)} placeholder="task:t_001:код или team:team_001:код" required /><button className="outline-button">Восстановить доступ</button></form>
+    </section>
   </main>;
 }
 
@@ -547,6 +602,7 @@ export default function App() {
   const [selectedTeam, setSelectedTeam] = useState(() => localStorage.getItem("sana-selected-team") || "");
   const [businessProfile, setBusinessProfile] = useState(() => readJson("sana-business-profile", { name: "", company: "", role: "", email: "", about: "" }));
   const [service, setService] = useState("checking");
+  const [editingTask, setEditingTask] = useState(null);
 
   function notify(text, error = false) {
     setToast({ text, error }); window.clearTimeout(window.__sanaToast); window.__sanaToast = window.setTimeout(() => setToast(null), 3500);
@@ -563,16 +619,20 @@ export default function App() {
     ...(role === "business" ? [["workspace", "chat", "AI-конструктор"]] : []),
     ["catalog", "catalog", "Каталог"], ["offers", "offers", role === "business" ? "Мои задачи" : "Мои отклики"], ["profile", "user", "Профиль"],
   ];
+  function editTask(task) {
+    setEditingTask(task);
+    setView("workspace");
+  }
   return <div className="app">
     <header className="topbar">
       <button className="brand" onClick={() => setView(role === "business" ? "workspace" : "catalog")}><span className="brand-mark"><Icon name="spark" /></span><span><strong>SANA</strong><small>AI · PRACTICE</small></span></button>
       <nav>{nav.map(([id,icon,label]) => <button className={view===id?"active":""} key={id} onClick={()=>setView(id)}><Icon name={icon}/><span>{label}</span></button>)}</nav>
       <div className="top-actions"><span className={`service ${service}`}><i />{service === "online" ? "Сервер работает" : service === "offline" ? "Нет связи" : "Проверяем"}</span><div className="role-switch"><button className={role==="business"?"active":""} onClick={()=>setRole("business")}>Бизнес</button><button className={role==="student"?"active":""} onClick={()=>setRole("student")}>Команда</button></div><button className="profile-mini" onClick={()=>setView("profile")}><span>{role === "business" ? (businessProfile.name || "Б").slice(0,1).toUpperCase() : (activeTeam?.name || "К").slice(0,1).toUpperCase()}</span><div><strong>{role === "business" ? businessProfile.name || "Ваш профиль" : activeTeam?.name || "Создать команду"}</strong><small>{role === "business" ? businessProfile.company || "Представитель бизнеса" : "Студенческая команда"}</small></div></button></div>
     </header>
-    {view === "workspace" && role === "business" && <ChatWorkspace notify={notify} ownerTokens={ownerTokens} setOwnerTokens={setOwnerTokens} businessProfile={businessProfile} onPublished={()=>setView("offers")} />}
+    {view === "workspace" && role === "business" && <ChatWorkspace key={editingTask?.id || "new"} notify={notify} ownerTokens={ownerTokens} setOwnerTokens={setOwnerTokens} businessProfile={businessProfile} editingTask={editingTask} onEditingFinished={()=>setEditingTask(null)} onPublished={()=>setView("offers")} />}
     {view === "catalog" && <Catalog role={role} selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} />}
-    {view === "offers" && <Offers role={role} ownerTokens={ownerTokens} selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} />}
-    {view === "profile" && <Profile role={role} businessProfile={businessProfile} setBusinessProfile={setBusinessProfile} teams={teams} setTeams={setTeams} selectedTeam={selectedTeam} setSelectedTeam={setSelectedTeam} teamTokens={teamTokens} setTeamTokens={setTeamTokens} notify={notify} />}
+    {view === "offers" && <Offers role={role} ownerTokens={ownerTokens} selectedTeam={selectedTeam} teamTokens={teamTokens} teams={teams} notify={notify} onEdit={editTask} />}
+    {view === "profile" && <Profile role={role} businessProfile={businessProfile} setBusinessProfile={setBusinessProfile} teams={teams} setTeams={setTeams} selectedTeam={selectedTeam} setSelectedTeam={setSelectedTeam} teamTokens={teamTokens} setTeamTokens={setTeamTokens} ownerTokens={ownerTokens} setOwnerTokens={setOwnerTokens} notify={notify} />}
     <Toast toast={toast} />
   </div>;
 }
