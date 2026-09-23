@@ -162,7 +162,8 @@ def home() -> FileResponse:
 
 @app.get("/api/health")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    store.initialize_database()
+    return {"status": "ok", "storage": store.storage_backend()}
 
 
 @app.post("/api/analyze")

@@ -10,7 +10,7 @@ TEAM_HEADERS = {"X-Sana-Team": TEST_TEAM_TOKEN}
 
 
 def test_health_and_home(client):
-    assert client.get("/api/health").json() == {"status": "ok"}
+    assert client.get("/api/health").json() == {"status": "ok", "storage": "json"}
     home = client.get("/")
     assert home.status_code == 200
     assert "Sana" in home.text

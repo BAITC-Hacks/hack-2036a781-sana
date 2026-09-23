@@ -30,6 +30,7 @@ def client(tmp_path, monkeypatch):
             row[field] = hashlib.sha256(token.encode("utf-8")).hexdigest()
         path.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
     monkeypatch.setattr(store, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(store, "DATABASE_URL", "")
     monkeypatch.setattr(ai, "_client", lambda: None)
     with TestClient(app) as test_client:
         yield test_client
@@ -39,6 +40,7 @@ def client(tmp_path, monkeypatch):
 def fresh_client(tmp_path, monkeypatch):
     """A real first run starts with no sample tasks or teams."""
     monkeypatch.setattr(store, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(store, "DATABASE_URL", "")
     monkeypatch.setattr(ai, "_client", lambda: None)
     with TestClient(app) as test_client:
         yield test_client
