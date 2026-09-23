@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import brandReference from "./assets/sana-brand-reference.png";
-import characterReference from "./assets/sana-character-reference.png";
 
 const FIELD_DEFS = [
   ["title", "Название задачи", "input"],
@@ -113,9 +112,17 @@ function SanaFace({ mood = "ready" }) {
 function SanaMascot({ mood = "ready", compact = false }) {
   const labels = { ready: "Sana готова помочь", curious: "Sana слушает", thinking: "Sana думает", happy: "Карточка готова", worried: "Проверьте сообщение", sleeping: "Sana отдыхает" };
   return <div className={`sana-mascot reference-mascot sana-mascot-${mood} ${compact ? "sana-mascot-compact" : ""}`} role="img" aria-label={labels[mood]}>
-    <svg className="reference-head" viewBox="65 145 165 137" aria-hidden="true">
-      <image href={characterReference} width="1536" height="1024" />
-      <path className="reference-face-mask" d="M103 225H185V263H103Z" />
+    <svg className="reference-head" viewBox="0 0 165 137" aria-hidden="true" shapeRendering="crispEdges">
+      <g fill="none" stroke="#18e98a" strokeWidth="5">
+        <path d="M82 48V19M68 48V37H61V29H52M96 48V37H103V29H113" />
+        <path d="M76 5H89V18H76ZM42 19H54V31H42ZM111 19H123V31H111Z" />
+      </g>
+      <path fill="#07894c" d="M8 72H17V115H8ZM148 72H157V115H148Z" />
+      <path fill="#35f49d" d="M5 77H11V109H5ZM154 77H160V109H154Z" />
+      <path fill="#10d878" d="M34 51H131V56H141V63H148V119H141V127H131V132H34V127H24V119H17V63H24V56H34Z" />
+      <path fill="#92ffcb" d="M34 51H131V56H141V63H135V60H30V64H24V59H34Z" />
+      <path fill="#079956" d="M24 116H31V123H135V116H148V119H141V127H131V132H34V127H24Z" />
+      <path fill="#00150c" d="M35 65H130V70H137V113H130V120H35V113H28V72H35Z" />
     </svg>
     <SanaFace mood={mood} />
   </div>;
@@ -385,6 +392,10 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
 
   return (
     <main className="workspace-shell">
+      <section className="workspace-intro">
+        <div><span className="eyebrow">SANA · AI-КОНСТРУКТОР</span><h1>От идеи — к понятной задаче</h1><p>Опишите цель. Sana задаст вопросы и поможет подготовить карточку для команды.</p></div>
+        <SanaMascot mood={mascotMood} />
+      </section>
       <div className="workflow-steps" aria-label="Этапы подготовки задачи">
         {[["draft", "Опишите задачу"], ["questions", "Ответьте Sana"], ["card", "Проверьте и опубликуйте"]].map(([step, label], index) => <div key={step} className={phase === step ? "current" : ""} aria-current={phase === step ? "step" : undefined}><span>{String(index + 1).padStart(2, "0")}</span>{label}</div>)}
       </div>
