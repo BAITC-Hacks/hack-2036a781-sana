@@ -1,6 +1,6 @@
 """Human-reviewed solutions and a grounded, deterministic coaching fallback."""
 import time
-from core import store
+from core import ai, store
 from core.accounts import AccountError
 
 
@@ -28,16 +28,4 @@ def review(proposal_id, version, decision, comment):
 
 
 def coach(task, question):
-    # Explicit fallback: quote only card facts, never claim generated work is a result.
-    labels = {"users": "для кого решение", "data_materials": "данные и материалы",
-              "constraints": "ограничения", "expected_result": "ожидаемый результат",
-              "success_criteria": "критерии успеха", "contact": "контакт бизнеса"}
-    missing = [label for field, label in labels.items() if not task.get(field)]
-    result = "Я помогу спланировать работу, но не выполню задание за команду.\n\n"
-    result += "1. Сверьте понимание задачи: «" + task.get("need", task.get("title", "")) + "».\n"
-    result += "2. Проверьте доступные материалы вместе с бизнесом.\n"
-    result += "3. Разбейте результат на небольшие проверяемые этапы и согласуйте первый.\n"
-    result += "4. Перед отправкой сравните решение с критериями: " + (task.get("success_criteria") or "в карточке не указаны") + ".\n"
-    if missing:
-        result += "\nВ карточке не указано: " + ", ".join(missing) + ". Уточните это у бизнеса; я не буду придумывать ответы."
-    return {"text": result, "source": "fallback"}
+    return ai.coach_solution(task, question)

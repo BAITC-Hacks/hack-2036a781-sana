@@ -83,3 +83,30 @@ def test_ai_field_editor_rejects_unknown_selection(monkeypatch):
     monkeypatch.setattr(ai, "_ask_model", lambda *_args, **_kwargs: None)
     result = ai.edit_card_field("context", "Исходный текст", "Сделай короче", "другой")
     assert result["error"]["code"] == "invalid_input"
+
+
+def test_solution_coach_uses_grounded_ai_response(monkeypatch):
+    captured = {}
+
+    def fake_ask(system_prompt, payload, response_type, reasoning_effort=None):
+        captured.update(payload)
+        assert response_type is ai.CoachResponse
+        assert reasoning_effort == "high"
+        return {"text": "Начните с проверки критериев вместе с бизнесом."}
+
+    monkeypatch.setattr(ai, "_ask_model", fake_ask)
+    result = ai.coach_solution(
+        {"title": "Прототип", "success_criteria": "Пять успешных тестов"},
+        "С чего начать?",
+    )
+
+    assert result["source"] == "ai"
+    assert captured["question"] == "С чего начать?"
+    assert captured["task"]["success_criteria"] == "Пять успешных тестов"
+
+
+def test_solution_coach_has_safe_fallback(monkeypatch):
+    monkeypatch.setattr(ai, "_ask_model", lambda *_args, **_kwargs: None)
+    result = ai.coach_solution({"title": "Прототип"}, "Сделай всё за нас")
+    assert result["source"] == "fallback"
+    assert "не выполню" in result["text"]

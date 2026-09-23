@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field
 
-from core.prompts import ANALYZE_SYSTEM_PROMPT, BUILD_CARD_SYSTEM_PROMPT, EDIT_FIELD_SYSTEM_PROMPT
+from core.prompts import ANALYZE_SYSTEM_PROMPT, BUILD_CARD_SYSTEM_PROMPT, COACH_SYSTEM_PROMPT, EDIT_FIELD_SYSTEM_PROMPT
 from core.rating import METRICS, calculate_rating, missing_fields
 
 
@@ -93,6 +93,12 @@ class EditFieldResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     text: str = Field(min_length=1, max_length=4000)
+
+
+class CoachResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1, max_length=6000)
 
 
 ModelResponse = TypeVar("ModelResponse", bound=BaseModel)
@@ -483,3 +489,36 @@ def edit_card_field(
     if not isinstance(text, str) or not text.strip():
         return {"text": current_text, "source": "fallback"}
     return {"text": text.strip()[:MAX_DRAFT_LENGTH], "source": "ai"}
+
+
+def coach_solution(task: dict, question: str) -> dict:
+    if not isinstance(task, dict) or not isinstance(question, str) or not question.strip() or len(question) > 2000:
+        return _error("Введите вопрос длиной до 2000 символов.")
+    safe_task = {field: str(task.get(field, ""))[:MAX_DRAFT_LENGTH] for field in CARD_FIELDS}
+    safe_task["industry"] = str(task.get("industry", ""))[:80]
+    result = _ask_model(
+        COACH_SYSTEM_PROMPT,
+        {"task": safe_task, "question": question.strip()},
+        CoachResponse,
+        "high",
+    )
+    if result is not None and isinstance(result.get("text"), str) and result["text"].strip():
+        return {"text": result["text"].strip()[:6000], "source": "ai"}
+
+    labels = {
+        "users": "для кого решение",
+        "data_materials": "данные и материалы",
+        "constraints": "ограничения",
+        "expected_result": "ожидаемый результат",
+        "success_criteria": "критерии успеха",
+        "contact": "контакт бизнеса",
+    }
+    missing = [label for field, label in labels.items() if not safe_task.get(field)]
+    text = "Я помогу спланировать работу, но не выполню задание за команду.\n\n"
+    text += "1. Сверьте понимание задачи: «" + (safe_task.get("need") or safe_task.get("title")) + "».\n"
+    text += "2. Проверьте доступные материалы вместе с бизнесом.\n"
+    text += "3. Разбейте результат на небольшие проверяемые этапы и согласуйте первый.\n"
+    text += "4. Перед отправкой сравните решение с критериями: " + (safe_task.get("success_criteria") or "в карточке не указаны") + ".\n"
+    if missing:
+        text += "\nВ карточке не указано: " + ", ".join(missing) + ". Уточните это у бизнеса; я не буду придумывать ответы."
+    return {"text": text, "source": "fallback"}

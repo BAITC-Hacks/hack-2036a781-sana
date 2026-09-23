@@ -144,3 +144,24 @@ def join(user, code):
             members.append(user["id"])
         return team_id
     return store.workflow_state(update)
+
+
+def claim_legacy(user, tasks, teams):
+    """Recover records created before accounts, using their browser-held tokens."""
+    if not isinstance(tasks, dict) or not isinstance(teams, dict) or len(tasks) > 200 or len(teams) > 200:
+        raise AccountError("Слишком много записей для восстановления.")
+    claimed = {"tasks": [], "teams": []}
+    groups = ((tasks, "tasks"), (teams, "teams"))
+    for records, kind in groups:
+        for record_id, token in records.items():
+            if not isinstance(record_id, str) or len(record_id) > 100 or not isinstance(token, str) or not 32 <= len(token) <= 128:
+                continue
+            token_hash = digest(token)
+            if kind == "tasks" and user["role"] == "business":
+                if store.claim_task_owner(record_id, token_hash, user["id"]):
+                    claimed[kind].append(record_id)
+            if kind == "teams" and user["role"] == "student":
+                if store.claim_team_creator(record_id, token_hash, user["id"]):
+                    claimed[kind].append(record_id)
+                    store.workflow_state(lambda state: state.setdefault("members", {}).setdefault(record_id, []).append(user["id"]))
+    return claimed

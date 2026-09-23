@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import hmac
 import tempfile
 import threading
 from contextlib import contextmanager
@@ -408,6 +409,56 @@ def load_teams() -> list[dict]:
 
 def get_team(team_id: str) -> dict | None:
     return next((team for team in load_teams() if team.get("id") == team_id), None)
+
+
+def _claim_legacy_record(
+    record_type: str,
+    record_id: str,
+    token_hash: str,
+    identity_field: str,
+    identity: str,
+) -> bool:
+    """Attach an unowned legacy record after atomically verifying its old token."""
+    hash_field = "owner_token_hash" if record_type == "task" else "team_token_hash"
+    if record_type not in {"task", "team"} or not token_hash or not identity:
+        return False
+    if _database_enabled():
+        with _database_connection() as connection:
+            row = connection.execute(
+                "SELECT payload FROM sana_records WHERE record_type=%s AND record_id=%s FOR UPDATE",
+                (record_type, record_id),
+            ).fetchone()
+            if row is None:
+                return False
+            record = dict(row["payload"])
+            expected = record.get(hash_field, "")
+            if record.get(identity_field) or not isinstance(expected, str) or not hmac.compare_digest(expected, token_hash):
+                return False
+            record[identity_field] = identity
+            connection.execute(
+                "UPDATE sana_records SET payload=%s,updated_at=NOW() WHERE record_type=%s AND record_id=%s",
+                (Jsonb(record), record_type, record_id),
+            )
+            return True
+    filename = "tasks.json" if record_type == "task" else "teams.json"
+    with _locked_items(filename) as records:
+        for record in records:
+            expected = record.get(hash_field, "")
+            if record.get("id") != record_id or record.get(identity_field):
+                continue
+            if not isinstance(expected, str) or not hmac.compare_digest(expected, token_hash):
+                return False
+            record[identity_field] = identity
+            return _write_items(_path(filename), records)
+    return False
+
+
+def claim_task_owner(task_id: str, token_hash: str, user_id: str) -> bool:
+    return _claim_legacy_record("task", task_id, token_hash, "owner_id", user_id)
+
+
+def claim_team_creator(team_id: str, token_hash: str, user_id: str) -> bool:
+    return _claim_legacy_record("team", team_id, token_hash, "creator_id", user_id)
 
 
 def save_team(team: dict) -> dict:

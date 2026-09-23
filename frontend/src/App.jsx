@@ -869,7 +869,28 @@ export default function App() {
     }
     setSessionReady(true);
   }
-  async function refreshSession() { applySession(await api("/api/auth/me")); }
+  async function recoverLegacy(result) {
+    if (!result.user) return result;
+    const tasks=readJson("sana-owner-tokens",{}), legacyTeams=readJson("sana-team-tokens",{});
+    if (!Object.keys(tasks).length && !Object.keys(legacyTeams).length) return result;
+    try {
+      const recovered=await api("/api/account/claim-legacy",{method:"POST",body:{tasks,teams:legacyTeams}});
+      const claimedTasks=new Set(recovered.claimed.tasks), claimedTeams=new Set(recovered.claimed.teams);
+      saveJson("sana-owner-tokens",Object.fromEntries(Object.entries(tasks).filter(([id])=>!claimedTasks.has(id))));
+      saveJson("sana-team-tokens",Object.fromEntries(Object.entries(legacyTeams).filter(([id])=>!claimedTeams.has(id))));
+      if (claimedTasks.size || claimedTeams.size) notify("Старые задачи и команды привязаны к аккаунту");
+      return recovered.account;
+    } catch (error) {
+      notify("Не удалось автоматически восстановить старые данные: " + error.message,true);
+      return result;
+    }
+  }
+  async function refreshSession() { applySession(await recoverLegacy(await api("/api/auth/me"))); }
+  async function completeLogin(result) {
+    const recovered=await recoverLegacy(result);
+    applySession(recovered);
+    setView(recovered.user.role === "business" ? "workspace" : "profile");
+  }
   async function logout() {
     try {
       await api("/api/auth/logout",{method:"POST",body:{}});
@@ -907,7 +928,7 @@ export default function App() {
       <nav>{nav.filter(([id])=>user || ["home","catalog"].includes(id)).map(([id,icon,label]) => <button aria-label={label} aria-current={view===id?"page":undefined} className={view===id?"active":""} key={id} onClick={()=>setView(id)}><Icon name={icon}/><span>{label}</span></button>)}</nav>
       <div className="top-actions"><span className={`service ${service}`}><i />{service === "online" ? "Сервер работает" : service === "offline" ? "Нет связи" : "Проверяем"}</span>{user ? <><Notifications api={api} onNavigate={setView} notify={notify}/><button className="profile-mini" onClick={()=>setView("profile")}><span>{user.name.slice(0,1)}</span><div><strong>{user.name}</strong><small>{role === "business" ? "Бизнес" : activeTeam?.name || "Студент · создайте команду"}</small></div></button></> : <button className="primary-button" onClick={()=>setView("auth")}>Войти / Регистрация</button>}</div>
     </header>
-    {sessionReady && view === "auth" && <AuthScreen api={api} Mascot={SanaMascot} onLogin={result=>{applySession(result);setView(result.user.role === "business" ? "workspace" : "profile");}}/>}
+    {sessionReady && view === "auth" && <AuthScreen api={api} Mascot={SanaMascot} onLogin={completeLogin}/>}
     {user && view === "workspace" && role === "business" && <ChatWorkspace key={editingTask?.id || "new"} notify={notify} ownerTokens={ownerTokens} setOwnerTokens={setOwnerTokens} businessProfile={businessProfile} editingTask={editingTask} onEditingFinished={()=>setEditingTask(null)} onPublished={()=>{refreshSession();setView("offers");}} />}
     {view === "catalog" && <Catalog role={user ? role : "student"} selectedTeam={user ? selectedTeam : ""} teamTokens={teamTokens} notify={notify} onProfile={() => setView(user ? "profile" : "auth")} />}
     {user && view === "offers" && <Offers role={role} ownerTokens={ownerTokens} selectedTeam={selectedTeam} teamTokens={teamTokens} teams={teams} notify={notify} onEdit={editTask} onWork={()=>setView("delivery")} />}

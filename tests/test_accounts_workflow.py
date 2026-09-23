@@ -1,12 +1,16 @@
+import hashlib
+import secrets
+
 from fastapi.testclient import TestClient
 from app.main import app
-from core import store, accounts
+from core import ai, store, accounts
 
 
 def test_accounts_and_full_delivery(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "DATA_DIR", tmp_path)
     monkeypatch.setattr(store, "DATABASE_URL", "")
     monkeypatch.setenv("SANA_LEGACY_MODE", "0")
+    monkeypatch.setattr(ai, "_client", lambda: None)
     business = TestClient(app, headers={"X-Sana-Request": "1"})
     student = TestClient(app, headers={"X-Sana-Request": "1"})
     friend = TestClient(app, headers={"X-Sana-Request": "1"})
@@ -80,3 +84,37 @@ def test_csrf_and_rate_limits(tmp_path, monkeypatch):
         assert False, "Expected rate limit"
     except accounts.AccountError:
         pass
+
+
+def test_legacy_records_are_securely_claimed_by_new_accounts(tmp_path, monkeypatch):
+    monkeypatch.setattr(store, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(store, "DATABASE_URL", "")
+    monkeypatch.setenv("SANA_LEGACY_MODE", "0")
+    task_token = secrets.token_urlsafe(32)
+    team_token = secrets.token_urlsafe(32)
+    task = store.save_task({
+        "title": "Старая задача",
+        "status": "published",
+        "owner_token_hash": hashlib.sha256(task_token.encode()).hexdigest(),
+    })
+    team = store.save_team({
+        "name": "Старая команда",
+        "team_token_hash": hashlib.sha256(team_token.encode()).hexdigest(),
+    })
+
+    business = TestClient(app, headers={"X-Sana-Request": "1"})
+    student = TestClient(app, headers={"X-Sana-Request": "1"})
+    business.post("/api/auth/register", json={"name": "Business", "email": "legacy-business@example.com", "password": "correct-password-123", "role": "business"})
+    student.post("/api/auth/register", json={"name": "Student", "email": "legacy-student@example.com", "password": "correct-password-123", "role": "student"})
+
+    wrong = business.post("/api/account/claim-legacy", json={"tasks": {task["id"]: "x" * 40}, "teams": {}}).json()["data"]
+    assert wrong["claimed"]["tasks"] == []
+    claimed_task = business.post("/api/account/claim-legacy", json={"tasks": {task["id"]: task_token}, "teams": {}}).json()["data"]
+    claimed_team = student.post("/api/account/claim-legacy", json={"tasks": {}, "teams": {team["id"]: team_token}}).json()["data"]
+
+    assert claimed_task["claimed"]["tasks"] == [task["id"]]
+    assert task["id"] in claimed_task["account"]["owned_task_ids"]
+    assert claimed_team["claimed"]["teams"] == [team["id"]]
+    assert claimed_team["account"]["teams"][0]["id"] == team["id"]
+    assert store.get_task(task["id"])["owner_id"] == claimed_task["account"]["user"]["id"]
+    assert store.get_team(team["id"])["creator_id"] == claimed_team["account"]["user"]["id"]

@@ -73,6 +73,17 @@ async def profile(request: Request):
     return success({"user": store.workflow_state(update)})
 
 
+@router.post("/api/account/claim-legacy")
+async def claim_legacy(request: Request):
+    values = await body(request)
+    claimed = accounts.claim_legacy(
+        request.state.user,
+        values.get("tasks", {}),
+        values.get("teams", {}),
+    )
+    return success({"claimed": claimed, "account": account_data(request.state.user)})
+
+
 @router.post("/api/account/join")
 async def join(request: Request):
     accounts.throttle("join:" + request.state.user["id"])
