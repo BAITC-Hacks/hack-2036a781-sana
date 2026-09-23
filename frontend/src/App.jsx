@@ -174,7 +174,38 @@ function RatingPanel({ rating }) {
   );
 }
 
+function TaskSheet({ card, businessProfile, editing }) {
+  const score = Number(card.rating?.score) || 0;
+  const theme = Object.hasOwn(INDUSTRIES, card.industry) ? card.industry : "education";
+  const value = (field) => card[field]?.trim() || "Не указано";
+  const features = [card.users, card.data_materials, card.interaction_format].filter((item) => item?.trim()).join(" · ") || "Не указано";
+  const tips = card.rating?.tips?.filter(Boolean) || [];
+  return (
+    <article className={`task-sheet task-sheet-${theme}`}>
+      <header className="task-sheet-hero">
+        <div><span>{INDUSTRIES[card.industry] || "Практическая задача"}</span><h3>{value("title")}</h3><p>{businessProfile?.company || value("contact")}</p></div>
+        <div className="task-sheet-status"><span>{editing ? "Опубликовано" : "На проверке"}</span><strong>Готовность {score}/100</strong></div>
+      </header>
+      <div className="task-sheet-grid">
+        <div className="task-sheet-column">
+          <section className="sheet-block sheet-block-secondary"><h4>Проблема</h4><p>{value("context")}</p></section>
+          <section className="sheet-block sheet-block-primary"><h4>Цель</h4><p>{value("need")}</p></section>
+          <section className="sheet-block sheet-block-secondary"><h4>Ожидаемый результат</h4><p>{value("expected_result")}</p></section>
+        </div>
+        <div className="task-sheet-column">
+          <section className="sheet-block sheet-block-primary"><h4>Пользователи и материалы</h4><p>{features}</p></section>
+          <section className="sheet-block sheet-block-secondary"><h4>Критерии успеха</h4><p>{value("success_criteria")}</p></section>
+          <section className="sheet-block sheet-block-primary"><h4>Ограничения</h4><p>{value("constraints")}</p></section>
+        </div>
+      </div>
+      <section className="task-sheet-advice"><h4>{score === 100 ? "Карточка полностью готова" : "Что добавить для роста рейтинга?"}</h4><p>{tips.length ? tips.join(" · ") : "Все показатели заполнены."}</p></section>
+      <footer>Черновик → уточнения → карточка → подтверждение → рейтинг → каталог</footer>
+    </article>
+  );
+}
+
 function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMood, expanded, onToggle, editing = false }) {
+  const [displayMode, setDisplayMode] = useState(editing ? "edit" : "preview");
   const applyProfile = () => {
     if (!businessProfile?.name && !businessProfile?.email) return;
     setCard((current) => ({
@@ -187,6 +218,10 @@ function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMoo
       <header className="panel-heading">
         <div className="preview-heading-copy"><span className="eyebrow">ЖИВАЯ КАРТОЧКА</span><h2>Задача собирается справа</h2></div>
         <div className="preview-heading-actions">
+          {card && <div className="card-view-switch" aria-label="Режим живой карточки">
+            <button type="button" className={displayMode === "preview" ? "active" : ""} onClick={() => setDisplayMode("preview")}>Карточка</button>
+            <button type="button" className={displayMode === "edit" ? "active" : ""} onClick={() => setDisplayMode("edit")}>Поля</button>
+          </div>}
           <span className="live-dot"><i /> обновляется</span>
           <button
             className="preview-toggle"
@@ -209,6 +244,7 @@ function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMoo
         </div>
       ) : (
         <div className="card-editor-wrap">
+          {displayMode === "preview" ? <TaskSheet card={card} businessProfile={businessProfile} editing={editing} /> : <>
           <div className="card-form">
             <div className="field full">
               <label>Отрасль</label>
@@ -229,6 +265,7 @@ function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMoo
             <button className="text-button" type="button" onClick={applyProfile}>Подставить контакт из профиля</button>
           </div>
           <RatingPanel rating={card.rating} />
+          </>}
           <div className="publish-bar">
             <div><Icon name="check" /><span><strong>Публикация только вручную</strong><small>Проверьте факты перед подтверждением</small></span></div>
             <button className="primary-button" type="button" disabled={busy} onClick={onPublish}>{busy ? "Сохраняем…" : editing ? "Сохранить изменения" : "Подтвердить и опубликовать"}</button>
