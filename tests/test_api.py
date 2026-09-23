@@ -169,6 +169,15 @@ def test_fresh_real_user_flow_and_private_decisions(fresh_client):
     assert built["context"] == draft
     assert built["data_materials"] == ""
 
+    edited = browser.post("/api/edit-card-field", json={
+        "field": "context",
+        "current_text": built["context"],
+        "selected_text": "",
+        "instruction": "Сделай короче",
+    }).json()
+    assert edited["ok"] is True
+    assert "text" in edited["data"]
+
     built.update({
         "need": "Ускорить проверку работ и обратную связь ученикам.",
         "users": "Учителя и ученики средней школы.",

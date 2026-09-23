@@ -201,6 +201,21 @@ async def build_card(request: Request) -> JSONResponse:
     return _success(result)
 
 
+@app.post("/api/edit-card-field")
+async def edit_card_field(request: Request) -> JSONResponse:
+    body = await _read_body(request)
+    if isinstance(body, JSONResponse):
+        return body
+    result = ai.edit_card_field(
+        body.get("field"),
+        body.get("current_text"),
+        body.get("instruction"),
+        body.get("selected_text", ""),
+    )
+    error = _error_from_result(result)
+    return error or _success(result)
+
+
 @app.post("/api/rating")
 async def rating(request: Request) -> JSONResponse:
     body = await _read_body(request)

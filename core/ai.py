@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field
 
-from core.prompts import ANALYZE_SYSTEM_PROMPT, BUILD_CARD_SYSTEM_PROMPT
+from core.prompts import ANALYZE_SYSTEM_PROMPT, BUILD_CARD_SYSTEM_PROMPT, EDIT_FIELD_SYSTEM_PROMPT
 from core.rating import METRICS, calculate_rating, missing_fields
 
 
@@ -87,6 +87,12 @@ class BuildCardModelResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     fields: CardEvidenceFields
+
+
+class EditFieldResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1, max_length=4000)
 
 
 ModelResponse = TypeVar("ModelResponse", bound=BaseModel)
@@ -440,3 +446,40 @@ def build_card(draft: str, answers: list[dict], language: str = "ru") -> dict:
     card["status"] = "draft"
     card["rating"] = calculate_rating(card)
     return {"card": card, "source": "ai"}
+
+
+def edit_card_field(
+    field: str,
+    current_text: str,
+    instruction: str,
+    selected_text: str = "",
+) -> dict:
+    if field not in CARD_FIELDS:
+        return _error("Выберите поле карточки для редактирования.")
+    if not isinstance(current_text, str) or len(current_text) > MAX_DRAFT_LENGTH:
+        return _error("Текст поля должен быть не длиннее 4000 символов.")
+    if not isinstance(instruction, str) or not instruction.strip() or len(instruction) > 1000:
+        return _error("Опишите изменение текстом длиной до 1000 символов.")
+    if not isinstance(selected_text, str) or len(selected_text) > MAX_DRAFT_LENGTH:
+        return _error("Выделенный фрагмент слишком длинный.")
+    selected_text = selected_text.strip()
+    if selected_text and selected_text not in current_text:
+        return _error("Выделенный фрагмент не найден в выбранном поле.")
+
+    result = _ask_model(
+        EDIT_FIELD_SYSTEM_PROMPT,
+        {
+            "field": field,
+            "current_text": current_text,
+            "selected_text": selected_text,
+            "instruction": instruction.strip(),
+        },
+        EditFieldResponse,
+        "high",
+    )
+    if result is None:
+        return {"text": current_text, "source": "fallback"}
+    text = result.get("text", "")
+    if not isinstance(text, str) or not text.strip():
+        return {"text": current_text, "source": "fallback"}
+    return {"text": text.strip()[:MAX_DRAFT_LENGTH], "source": "ai"}

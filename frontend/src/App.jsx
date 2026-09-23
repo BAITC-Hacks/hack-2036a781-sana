@@ -174,28 +174,49 @@ function RatingPanel({ rating }) {
   );
 }
 
-function TaskSheet({ card, businessProfile, editing }) {
+function SelectableField({ field, label, value, tone = "secondary", activeField, onFieldSelect }) {
+  const select = (event) => {
+    const selection = window.getSelection();
+    const selectedText = selection && event.currentTarget.contains(selection.anchorNode) ? selection.toString().trim() : "";
+    onFieldSelect?.({ field, label, selectedText });
+  };
+  return <section
+    className={`sheet-block sheet-block-${tone} ${activeField === field ? "selected" : ""}`}
+    tabIndex="0"
+    aria-label={`${label}. Нажмите или выделите текст для AI-редактирования`}
+    onMouseUp={select}
+    onKeyDown={(event) => { if (event.key === "Enter") select(event); }}
+  ><span className="sheet-edit-hint"><Icon name="spark" /> AI</span><h4>{label}</h4><p>{value}</p></section>;
+}
+
+function TaskSheet({ card, businessProfile, editing, activeField, onFieldSelect }) {
   const score = Number(card.rating?.score) || 0;
   const theme = Object.hasOwn(INDUSTRIES, card.industry) ? card.industry : "education";
   const value = (field) => card[field]?.trim() || "Не указано";
-  const features = [card.users, card.data_materials, card.interaction_format].filter((item) => item?.trim()).join(" · ") || "Не указано";
   const tips = card.rating?.tips?.filter(Boolean) || [];
+  const selectInline = (event, field, label) => {
+    const selection = window.getSelection();
+    const candidate = selection && event.currentTarget.contains(selection.anchorNode) ? selection.toString().trim() : "";
+    const selectedText = candidate && (card[field] || "").includes(candidate) ? candidate : "";
+    onFieldSelect?.({ field, label, selectedText });
+  };
   return (
     <article className={`task-sheet task-sheet-${theme}`}>
       <header className="task-sheet-hero">
-        <div><span>{INDUSTRIES[card.industry] || "Практическая задача"}</span><h3>{value("title")}</h3><p>{businessProfile?.company || value("contact")}</p></div>
+        <div><span>{INDUSTRIES[card.industry] || "Практическая задача"}</span><h3 className={activeField === "title" ? "selected" : ""} onMouseUp={(event) => selectInline(event, "title", "Название задачи")}>{value("title")}</h3><p className={activeField === "contact" ? "selected" : ""} onMouseUp={(event) => selectInline(event, "contact", "Контакт бизнеса")}>{businessProfile?.company || value("contact")}</p></div>
         <div className="task-sheet-status"><span>{editing ? "Опубликовано" : "На проверке"}</span><strong>Готовность {score}/100</strong></div>
       </header>
       <div className="task-sheet-grid">
         <div className="task-sheet-column">
-          <section className="sheet-block sheet-block-secondary"><h4>Проблема</h4><p>{value("context")}</p></section>
-          <section className="sheet-block sheet-block-primary"><h4>Цель</h4><p>{value("need")}</p></section>
-          <section className="sheet-block sheet-block-secondary"><h4>Ожидаемый результат</h4><p>{value("expected_result")}</p></section>
+          <SelectableField field="context" label="Проблема" value={value("context")} activeField={activeField} onFieldSelect={onFieldSelect} />
+          <SelectableField field="need" label="Цель" value={value("need")} tone="primary" activeField={activeField} onFieldSelect={onFieldSelect} />
+          <SelectableField field="expected_result" label="Ожидаемый результат" value={value("expected_result")} activeField={activeField} onFieldSelect={onFieldSelect} />
         </div>
         <div className="task-sheet-column">
-          <section className="sheet-block sheet-block-primary"><h4>Пользователи и материалы</h4><p>{features}</p></section>
-          <section className="sheet-block sheet-block-secondary"><h4>Критерии успеха</h4><p>{value("success_criteria")}</p></section>
-          <section className="sheet-block sheet-block-primary"><h4>Ограничения</h4><p>{value("constraints")}</p></section>
+          <SelectableField field="users" label="Пользователи" value={value("users")} tone="primary" activeField={activeField} onFieldSelect={onFieldSelect} />
+          <SelectableField field="data_materials" label="Данные и материалы" value={value("data_materials")} activeField={activeField} onFieldSelect={onFieldSelect} />
+          <SelectableField field="success_criteria" label="Критерии успеха" value={value("success_criteria")} activeField={activeField} onFieldSelect={onFieldSelect} />
+          <SelectableField field="constraints" label="Ограничения" value={value("constraints")} tone="primary" activeField={activeField} onFieldSelect={onFieldSelect} />
         </div>
       </div>
       <section className="task-sheet-advice"><h4>{score === 100 ? "Карточка полностью готова" : "Что добавить для роста рейтинга?"}</h4><p>{tips.length ? tips.join(" · ") : "Все показатели заполнены."}</p></section>
@@ -207,7 +228,9 @@ function TaskSheet({ card, businessProfile, editing }) {
 function AiProgress({ operation = "analyze", panel = false }) {
   const steps = operation === "build"
     ? ["Сверяю ответы с черновиком", "Заполняю поля только вашими фактами", "Считаю готовность карточки"]
-    : ["Читаю описание задачи", "Проверяю, каких фактов не хватает", "Готовлю уточняющие вопросы"];
+    : operation === "edit"
+      ? ["Читаю выбранный фрагмент", "Выполняю вашу команду", "Готовлю вариант для проверки"]
+      : ["Читаю описание задачи", "Проверяю, каких фактов не хватает", "Готовлю уточняющие вопросы"];
   const [step, setStep] = useState(0);
   useEffect(() => {
     const timer = window.setInterval(() => setStep((current) => (current + 1) % steps.length), 2200);
@@ -222,12 +245,40 @@ function AiProgress({ operation = "analyze", panel = false }) {
 
 function CardEditor({ card, setCard, onPublish, busy, aiOperation, businessProfile, mascotMood, expanded, onToggle, editing = false }) {
   const [displayMode, setDisplayMode] = useState(editing ? "edit" : "preview");
+  const [aiEdit, setAiEdit] = useState(null);
   const applyProfile = () => {
     if (!businessProfile?.name && !businessProfile?.email) return;
     setCard((current) => ({
       ...current,
       contact: [businessProfile.name, businessProfile.company, businessProfile.email].filter(Boolean).join(" · "),
     }));
+  };
+  const selectField = ({ field, label, selectedText }) => {
+    setAiEdit({ field, label, selectedText, instruction: "", result: "", error: "", busy: false });
+  };
+  const requestAiEdit = async () => {
+    if (!aiEdit?.instruction.trim()) return;
+    setAiEdit((current) => ({ ...current, busy: true, error: "", result: "" }));
+    try {
+      const result = await api("/api/edit-card-field", { method: "POST", body: {
+        field: aiEdit.field,
+        current_text: card[aiEdit.field] || "",
+        selected_text: aiEdit.selectedText || "",
+        instruction: aiEdit.instruction,
+      } });
+      if (result.source !== "ai" || result.text === (card[aiEdit.field] || "")) {
+        setAiEdit((current) => ({ ...current, busy: false, error: "ИИ не смог предложить изменение. Попробуйте уточнить команду." }));
+      } else {
+        setAiEdit((current) => ({ ...current, busy: false, result: result.text }));
+      }
+    } catch (error) {
+      setAiEdit((current) => ({ ...current, busy: false, error: error.message }));
+    }
+  };
+  const applyAiEdit = () => {
+    if (!aiEdit?.result) return;
+    setCard((current) => ({ ...current, [aiEdit.field]: aiEdit.result }));
+    setAiEdit(null);
   };
   return (
     <div className={`preview-panel ${expanded ? "" : "collapsed"}`}>
@@ -267,7 +318,21 @@ function CardEditor({ card, setCard, onPublish, busy, aiOperation, businessProfi
         </div>
       )) : (
         <div className="card-editor-wrap">
-          {displayMode === "preview" ? <TaskSheet card={card} businessProfile={businessProfile} editing={editing} /> : <>
+          {displayMode === "preview" ? <>
+          <div className="ai-edit-guide"><Icon name="spark" /><span><strong>Редактирование мышкой и через AI</strong>Нажмите на блок или выделите текст внутри него.</span></div>
+          {aiEdit && <section className="ai-edit-panel" aria-label="AI-редактор поля">
+            <div className="ai-edit-panel-head"><div><span className="eyebrow">AI-РЕДАКТОР</span><h3>{aiEdit.label}</h3></div><button type="button" aria-label="Закрыть AI-редактор" onClick={() => setAiEdit(null)}>×</button></div>
+            {aiEdit.selectedText && <div className="ai-selection"><span>Выделено</span>«{aiEdit.selectedText}»</div>}
+            <textarea value={aiEdit.instruction} maxLength="1000" disabled={aiEdit.busy} placeholder="Например: сократи текст, сделай понятнее или добавь срок 4 недели" onChange={(event) => setAiEdit((current) => ({ ...current, instruction: event.target.value }))} />
+            {aiEdit.busy && <AiProgress operation="edit" />}
+            {aiEdit.error && <p className="ai-edit-error">{aiEdit.error}</p>}
+            {aiEdit.result && <div className="ai-edit-result"><span>Предложение Sana</span><p>{aiEdit.result}</p></div>}
+            <div className="ai-edit-actions">
+              {aiEdit.result ? <><button className="text-button" type="button" onClick={() => setAiEdit((current) => ({ ...current, result: "" }))}>Изменить команду</button><button className="primary-button" type="button" onClick={applyAiEdit}>Применить</button></> : <button className="primary-button" type="button" disabled={aiEdit.busy || !aiEdit.instruction.trim()} onClick={requestAiEdit}>{aiEdit.busy ? "Sana редактирует…" : "Предложить изменение"}</button>}
+            </div>
+          </section>}
+          <TaskSheet card={card} businessProfile={businessProfile} editing={editing} activeField={aiEdit?.field} onFieldSelect={selectField} />
+          </> : <>
           <div className="card-form">
             <div className="field full">
               <label>Отрасль</label>
