@@ -175,6 +175,7 @@ function RatingPanel({ rating }) {
 }
 
 function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMood, editing = false }) {
+  const [expanded, setExpanded] = useState(true);
   const applyProfile = () => {
     if (!businessProfile?.name && !businessProfile?.email) return;
     setCard((current) => ({
@@ -183,12 +184,24 @@ function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMoo
     }));
   };
   return (
-    <div className="preview-panel">
+    <div className={`preview-panel ${expanded ? "" : "collapsed"}`}>
       <header className="panel-heading">
         <div><span className="eyebrow">ЖИВАЯ КАРТОЧКА</span><h2>Задача собирается справа</h2></div>
-        <span className="live-dot"><i /> обновляется</span>
+        <div className="preview-heading-actions">
+          <span className="live-dot"><i /> обновляется</span>
+          <button
+            className="preview-toggle"
+            type="button"
+            aria-expanded={expanded}
+            aria-label={expanded ? "Свернуть живую карточку" : "Открыть живую карточку"}
+            title={expanded ? "Свернуть карточку" : "Открыть карточку"}
+            onClick={() => setExpanded((current) => !current)}
+          >
+            <Icon name="arrow" />
+          </button>
+        </div>
       </header>
-      {!card ? (
+      {expanded && (!card ? (
         <div className="empty-preview">
           <SanaMascot mood={mascotMood} />
           <span className="assistant-kicker"><i /> Sana рядом на каждом шаге</span>
@@ -222,7 +235,7 @@ function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMoo
             <button className="primary-button" type="button" disabled={busy} onClick={onPublish}>{busy ? "Сохраняем…" : editing ? "Сохранить изменения" : "Подтвердить и опубликовать"}</button>
           </div>
         </div>
-      )}
+      ))}
     </div>
   );
 }

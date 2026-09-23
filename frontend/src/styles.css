@@ -65,6 +65,7 @@ h1, h2, h3 { letter-spacing: -.035em; line-height: 1.25; }
 .chat-panel,.preview-panel { display: flex; flex-direction: column; min-width: 0; height: 660px; border-radius: 18px; overflow: hidden; }
 .chat-panel { background: #06110b; color: #ecf8f0; border: 1px solid #143725; }
 .preview-panel { background: #f8faf8; border: 1px solid var(--line); }
+.preview-panel.collapsed { height: 89px; }
 .panel-heading { min-height: 89px; padding: 21px 22px; display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
 .panel-heading h2 { font-size: 20px; margin: 5px 0 0; }
 .chat-heading { border-color: #1b3425; }.chat-heading .eyebrow { color: #58d795; }
@@ -87,6 +88,11 @@ h1, h2, h3 { letter-spacing: -.035em; line-height: 1.25; }
 .composer-foot { display: flex; justify-content: space-between; gap: 7px; font-size: 9px; padding: 8px 0 0; color: #99ae9f; }.composer-foot button { font-size: 11px; color: #8febba; border: 0; background: transparent; }
 .typing { display: inline-flex; gap: 4px; margin-left: 6px; }.typing i,.thought-dots i { width: 3px; height: 3px; background: currentColor; animation: pulse 1s infinite alternate; }.typing i:nth-child(2),.thought-dots i:nth-child(2) { animation-delay: .2s; }
 .live-dot { display: flex; align-items: center; gap: 5px; font-size: 9px; color: #7c8b80; }.live-dot i { background: #27a862; }
+.preview-heading-actions { display: flex; align-items: center; gap: 10px; }
+.preview-toggle { width: 32px; height: 32px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid #d5ddd7; border-radius: 8px; background: #fff; color: #536259; }
+.preview-toggle:hover { background: #edf5ef; border-color: #b8c9bd; }
+.preview-toggle .icon { width: 15px; transform: rotate(90deg); transition: transform .18s ease; }
+.preview-panel.collapsed .preview-toggle .icon { transform: rotate(0); }
 .empty-preview { margin: auto; padding: 28px; text-align: center; max-width: 440px; }.empty-preview h3 { font-size: 25px; margin: 12px 0; }.empty-preview p { font-size: 14px; line-height: 1.8; color: #68786d; margin: 0; }
 .empty-preview .reference-mascot { width: 145px; margin: 0 auto 23px; }
 .assistant-kicker { color: #287f50; font-size: 9px; letter-spacing: .08em; font-weight: 700; }
