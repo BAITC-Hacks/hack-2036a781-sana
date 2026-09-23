@@ -367,6 +367,10 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
 
   return (
     <main className="workspace-shell">
+      <section className="workspace-intro">
+        <div><span className="eyebrow">SANA · AI-КОНСТРУКТОР</span><h1>От идеи — к понятной задаче</h1><p>Опишите цель. Sana задаст вопросы и поможет подготовить карточку для команды.</p></div>
+        <SanaMascot mood={mascotMood} />
+      </section>
       <div className="workflow-steps" aria-label="Этапы подготовки задачи">
         {[["draft", "Опишите задачу"], ["questions", "Ответьте Sana"], ["card", "Проверьте и опубликуйте"]].map(([step, label], index) => <div key={step} className={phase === step ? "current" : ""} aria-current={phase === step ? "step" : undefined}><span>{String(index + 1).padStart(2, "0")}</span>{label}</div>)}
       </div>
