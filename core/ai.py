@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
+from typing import Any, Literal, TypeVar
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from pydantic import BaseModel, ConfigDict, Field
 
 from core.prompts import ANALYZE_SYSTEM_PROMPT, BUILD_CARD_SYSTEM_PROMPT
 from core.rating import METRICS, calculate_rating, missing_fields
@@ -31,6 +32,61 @@ CARD_FIELDS = (
     "interaction_format",
 )
 VALID_KEYS = {metric[0] for metric in METRICS}
+DEFAULT_OPENAI_MODEL = "gpt-6-astra"
+VALID_REASONING_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
+
+QuestionKey = Literal[
+    "context_need",
+    "data_materials",
+    "expected_result",
+    "success_criteria",
+    "constraints",
+    "users",
+    "business_link",
+]
+
+
+class ClarificationQuestion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    key: QuestionKey
+    question: str = Field(min_length=3, max_length=300)
+
+
+class AnalyzeModelResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    questions: list[ClarificationQuestion] = Field(min_length=3, max_length=5)
+
+
+class EvidenceField(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    evidence: str
+
+
+class CardEvidenceFields(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: EvidenceField
+    context: EvidenceField
+    need: EvidenceField
+    users: EvidenceField
+    data_materials: EvidenceField
+    constraints: EvidenceField
+    expected_result: EvidenceField
+    success_criteria: EvidenceField
+    contact: EvidenceField
+    interaction_format: EvidenceField
+
+
+class BuildCardModelResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    fields: CardEvidenceFields
+
+
+ModelResponse = TypeVar("ModelResponse", bound=BaseModel)
 
 FALLBACK_QUESTIONS = {
     "context_need": "Что происходит сейчас и что именно вы хотите изменить?",
@@ -80,36 +136,56 @@ def _client() -> OpenAI | None:
     if not api_key:
         return None
     try:
-        timeout = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "30"))
-        timeout = min(max(timeout, 1.0), 60.0)
+        timeout = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "120"))
+        timeout = min(max(timeout, 1.0), 180.0)
         return OpenAI(api_key=api_key, timeout=timeout, max_retries=0)
     except (TypeError, ValueError):
         return None
 
 
-def _ask_model(system_prompt: str, payload: dict) -> dict | None:
+def _reasoning_effort() -> str:
+    effort = os.getenv("OPENAI_REASONING_EFFORT", "max").strip().casefold()
+    return effort if effort in VALID_REASONING_EFFORTS else "max"
+
+
+def _max_output_tokens() -> int:
+    try:
+        value = int(os.getenv("OPENAI_MAX_OUTPUT_TOKENS", "6000"))
+    except ValueError:
+        return 6000
+    return min(max(value, 512), 16000)
+
+
+def _ask_model(
+    system_prompt: str,
+    payload: dict,
+    response_type: type[ModelResponse],
+) -> dict | None:
     client = _client()
     if client is None:
         return None
     try:
-        response = client.chat.completions.create(
-            model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-            response_format={"type": "json_object"},
-            messages=[
+        response = client.responses.parse(
+            model=os.getenv("OPENAI_MODEL", DEFAULT_OPENAI_MODEL).strip()
+            or DEFAULT_OPENAI_MODEL,
+            reasoning={"effort": _reasoning_effort()},
+            max_output_tokens=_max_output_tokens(),
+            store=False,
+            input=[
                 {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
                     "content": json.dumps(payload, ensure_ascii=False),
                 },
             ],
+            text_format=response_type,
         )
-        content = response.choices[0].message.content
-        if not isinstance(content, str):
+        parsed = response.output_parsed
+        if not isinstance(parsed, response_type):
             return None
-        result = json.loads(content)
-        return result if isinstance(result, dict) else None
+        return parsed.model_dump()
     except Exception:
-        # Network, provider, and malformed-response errors all use the explicit fallback.
+        # Network, provider, refusal, and malformed-response errors use the safe fallback.
         return None
 
 
@@ -147,6 +223,7 @@ def analyze_draft(draft: str, industry: str = "", language: str = "ru") -> dict:
     result = _ask_model(
         ANALYZE_SYSTEM_PROMPT + f"\nWrite all generated questions in {LANGUAGE_NAMES[language]}.",
         {"draft": draft.strip(), "industry": industry.strip(), "language": language},
+        AnalyzeModelResponse,
     )
     if result is None:
         return fallback
@@ -249,6 +326,7 @@ def build_card(draft: str, answers: list[dict], language: str = "ru") -> dict:
     result = _ask_model(
         BUILD_CARD_SYSTEM_PROMPT + f"\nUse {LANGUAGE_NAMES[language]} for any generated text. Never translate or invent source facts.",
         {"draft": draft.strip(), "answers": normalized_answers, "language": language},
+        BuildCardModelResponse,
     )
     if result is None:
         return {"card": fallback, "source": "fallback"}
