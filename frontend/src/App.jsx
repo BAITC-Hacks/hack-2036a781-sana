@@ -176,19 +176,6 @@ function RatingPanel({ rating }) {
 
 function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMood, editing = false }) {
   const [expanded, setExpanded] = useState(true);
-  const renderField = (key) => {
-    const [, label, type] = FIELD_DEFS.find(([field]) => field === key);
-    return (
-      <div className="field" key={key}>
-        <label>{label}</label>
-        {type === "input" ? (
-          <input value={card[key] || ""} maxLength={4000} onChange={(e) => setCard({ ...card, [key]: e.target.value })} />
-        ) : (
-          <textarea value={card[key] || ""} maxLength={4000} onChange={(e) => setCard({ ...card, [key]: e.target.value })} />
-        )}
-      </div>
-    );
-  };
   const applyProfile = () => {
     if (!businessProfile?.name && !businessProfile?.email) return;
     setCard((current) => ({
@@ -223,42 +210,24 @@ function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMoo
         </div>
       ) : (
         <div className="card-editor-wrap">
-          <div className="card-visual-layout">
-            <section className="card-zone card-zone-hero">
-              <div className="card-zone-heading"><span>01</span><div><small>Первый взгляд</small><h3>Основа задачи</h3></div></div>
-              <div className="card-hero-fields">
-                <div className="field">
-                  <label>Отрасль</label>
-                  <select value={card.industry || "online_school"} onChange={(e) => setCard({ ...card, industry: e.target.value })}>
-                    {Object.entries(INDUSTRIES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                  </select>
-                </div>
-                {renderField("title")}
-              </div>
-            </section>
-            <section className="card-zone card-zone-main">
-              <div className="card-zone-heading"><span>02</span><div><small>Главная линия</small><h3>Проблема и результат</h3></div></div>
-              {renderField("context")}
-              {renderField("need")}
-              {renderField("expected_result")}
-            </section>
-            <div className="card-zone-stack">
-              <section className="card-zone">
-                <div className="card-zone-heading"><span>03</span><div><small>Уточнение</small><h3>Люди и ресурсы</h3></div></div>
-                {renderField("users")}
-                {renderField("data_materials")}
-              </section>
-              <section className="card-zone">
-                <div className="card-zone-heading"><span>04</span><div><small>Финальная проверка</small><h3>Условия успеха</h3></div></div>
-                {renderField("constraints")}
-                {renderField("success_criteria")}
-                <div className="card-contact-grid">
-                  {renderField("contact")}
-                  {renderField("interaction_format")}
-                </div>
-                <button className="text-button" type="button" onClick={applyProfile}>Подставить контакт из профиля</button>
-              </section>
+          <div className="card-form">
+            <div className="field full">
+              <label>Отрасль</label>
+              <select value={card.industry || "online_school"} onChange={(e) => setCard({ ...card, industry: e.target.value })}>
+                {Object.entries(INDUSTRIES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
             </div>
+            {FIELD_DEFS.map(([key, label, type]) => (
+              <div className={`field ${["title", "context", "need", "users", "data_materials", "constraints", "expected_result", "success_criteria"].includes(key) ? "full" : ""}`} key={key}>
+                <label>{label}</label>
+                {type === "input" ? (
+                  <input value={card[key] || ""} maxLength={4000} onChange={(e) => setCard({ ...card, [key]: e.target.value })} />
+                ) : (
+                  <textarea value={card[key] || ""} maxLength={4000} onChange={(e) => setCard({ ...card, [key]: e.target.value })} />
+                )}
+              </div>
+            ))}
+            <button className="text-button" type="button" onClick={applyProfile}>Подставить контакт из профиля</button>
           </div>
           <RatingPanel rating={card.rating} />
           <div className="publish-bar">
