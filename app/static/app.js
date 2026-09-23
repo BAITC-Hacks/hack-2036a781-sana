@@ -28,17 +28,38 @@ const LEVELS = {
 };
 
 const t = (key, values) => window.sanaI18n.t(key, values);
+function readSavedMap(key) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "{}");
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch (_error) {
+    return {};
+  }
+}
+function saveMap(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (_error) { /* Private browsing may block storage. */ }
+}
+function saveSelectedTeam(teamId) {
+  try { localStorage.setItem("sana-selected-team", teamId); } catch (_error) { /* The current tab still works. */ }
+}
+function saveUnpublishedDraft() {
+  try {
+    localStorage.setItem("sana-draft", byId("draft").value);
+    localStorage.setItem("sana-industry", byId("industry").value);
+  } catch (_error) { /* The editor remains usable in this tab. */ }
+}
 const state = {
   draft: "",
   industry: "online_school",
   questions: [],
   answers: {},
-  demoAnswers: {},
   card: null,
   rating: null,
   editingId: null,
   teams: [],
-  selectedTeam: "",
+  ownerTokens: readSavedMap("sana-owner-tokens"),
+  teamTokens: readSavedMap("sana-team-tokens"),
+  selectedTeam: (() => { try { return localStorage.getItem("sana-selected-team") || ""; } catch (_error) { return ""; } })(),
   role: "business",
   locale: window.sanaI18n.locale,
   toastTimer: null,
@@ -51,13 +72,20 @@ const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => 
 
 async function request(path, options = {}) {
   const init = { method: options.method || "GET", headers: {} };
+  if (options.ownerToken) init.headers["X-Sana-Owner"] = options.ownerToken;
+  if (options.teamToken) init.headers["X-Sana-Team"] = options.teamToken;
   if (options.body !== undefined) {
     init.headers["Content-Type"] = "application/json";
     init.body = JSON.stringify(options.body);
   }
   const response = await fetch(path, init);
   const payload = await response.json();
-  if (!payload.ok) throw new Error(t(`error_${payload.error?.code || "generic"}`));
+  if (!payload.ok) {
+    const code = payload.error?.code || "generic";
+    const key = `error_${code}`;
+    const message = t(key);
+    throw new Error(message === key ? t("error_generic") : message);
+  }
   return payload.data;
 }
 
@@ -112,10 +140,7 @@ function renderQuestions() {
     textarea.dataset.key = item.key;
     textarea.maxLength = 2000;
     textarea.placeholder = t("answerPlaceholder");
-    textarea.value = state.answers[item.key] || state.demoAnswers[item.key] || "";
-    if (!state.answers[item.key] && state.demoAnswers[item.key]) {
-      state.answers[item.key] = state.demoAnswers[item.key];
-    }
+    textarea.value = state.answers[item.key] || "";
     textarea.addEventListener("input", () => {
       state.answers[item.key] = textarea.value;
     });
@@ -290,19 +315,26 @@ async function publishCard() {
   if (!state.card) return;
   const button = byId("publish");
   const body = { card: { ...state.card, industry: byId("card-industry").value } };
+  const wasEditing = Boolean(state.editingId);
   setBusy(button, true, t("saving"));
   try {
     const result = state.editingId
-      ? await request(`/api/tasks/${encodeURIComponent(state.editingId)}`, { method: "PUT", body })
+      ? await request(`/api/tasks/${encodeURIComponent(state.editingId)}`, { method: "PUT", body, ownerToken: state.ownerTokens[state.editingId] })
       : await request("/api/tasks", { method: "POST", body });
+    if (result.owner_token && result.task?.id) {
+      state.ownerTokens[result.task.id] = result.owner_token;
+      saveMap("sana-owner-tokens", state.ownerTokens);
+    }
     state.card = result.task;
     state.editingId = null;
     byId("card-workspace").classList.add("hidden");
     byId("analysis").classList.add("hidden");
-    byId("draft").value = "";
+    if (!wasEditing) {
+      byId("draft").value = "";
+      saveUnpublishedDraft();
+    }
     showToast(t("toastPublished"));
-    loadCatalog();
-    loadProposals();
+    switchView("proposals");
   } catch (error) {
     showToast(error.message, true);
   } finally {
@@ -327,7 +359,7 @@ function taskCardHtml(task) {
   const score = Number(task.rating?.score) || 0;
   const metricLabels = { context_need: "metricContext", data_materials: "metricData", expected_result: "metricExpected", success_criteria: "metricSuccess", constraints: "metricConstraints", users: "metricUsers", business_link: "metricBusiness" };
   const metrics = (task.rating?.breakdown || []).map((item) => `<div class="metric-row"><span class="metric-name">${escapeHtml(t(metricLabels[item.key] || item.label))}</span><span class="metric-score">${Number(item.earned) || 0}/${Number(item.max) || 0}</span></div>`).join("");
-  const teamActions = state.role === "student" ? `<button class="button button-primary proposal-toggle" type="button">${escapeHtml(t("propose"))} →</button>` : "";
+  const teamActions = state.role === "student" ? `<button class="button button-primary proposal-toggle" type="button">${escapeHtml(t(state.selectedTeam ? "propose" : "createTeamFirst"))} →</button>` : "";
   return `
     <article class="task-card" data-task-id="${escapeHtml(task.id)}">
       <div class="task-card-head">
@@ -351,9 +383,22 @@ function taskCardHtml(task) {
     </article>`;
 }
 
+function updateTeamControls() {
+  const owned = state.teams.filter((team) => Boolean(state.teamTokens[team.id]));
+  if (!owned.some((team) => team.id === state.selectedTeam)) state.selectedTeam = owned[0]?.id || "";
+  const select = byId("active-team");
+  select.innerHTML = owned.map((team) => `<option value="${escapeHtml(team.id)}">${escapeHtml(team.name)}</option>`).join("");
+  select.value = state.selectedTeam;
+  const student = state.role === "student";
+  byId("team-toolbar").classList.toggle("hidden", !student || !owned.length);
+  byId("team-setup").classList.toggle("hidden", !student);
+  byId("student-progress").classList.toggle("hidden", !student || !owned.length);
+  if (student && !owned.length) byId("team-setup").open = true;
+  saveSelectedTeam(state.selectedTeam);
+}
+
 async function loadCatalog() {
-  byId("team-toolbar").classList.toggle("hidden", state.role !== "student");
-  byId("student-progress").classList.toggle("hidden", state.role !== "student");
+  updateTeamControls();
   const params = new URLSearchParams();
   if (byId("filter-industry").value) params.set("industry", byId("filter-industry").value);
   if (byId("filter-level").value) params.set("level", byId("filter-level").value);
@@ -364,8 +409,9 @@ async function loadCatalog() {
     const result = await request(`/api/tasks?${params.toString()}`);
     const tasks = result.tasks || [];
     if (!tasks.length) {
-      container.innerHTML = `<div class="empty-state"><strong>${escapeHtml(t("noTasks"))}</strong>${escapeHtml(t("noTasksHint"))}</div>`;
-      if (state.role === "student") loadStudentProgress();
+      const hint = state.role === "student" ? t("noTasksStudentHint") : t("noTasksHint");
+      container.innerHTML = `<div class="empty-state"><strong>${escapeHtml(t("noTasks"))}</strong><p>${escapeHtml(hint)}</p>${state.role === "business" ? `<button type="button" class="button button-primary" data-go="business">${escapeHtml(t("createFirstTask"))}</button>` : ""}</div>`;
+      if (state.role === "student" && state.selectedTeam) loadStudentProgress();
       return;
     }
     const select = byId("filter-industry");
@@ -375,7 +421,7 @@ async function loadCatalog() {
     select.innerHTML = options.join("");
     select.value = currentIndustry;
     container.innerHTML = tasks.map(taskCardHtml).join("");
-    if (state.role === "student") loadStudentProgress();
+    if (state.role === "student" && state.selectedTeam) loadStudentProgress();
   } catch (error) {
     container.innerHTML = `<div class="empty-state"><strong>${escapeHtml(t("catalogLoadError"))}</strong>${escapeHtml(error.message)}</div>`;
   }
@@ -387,22 +433,26 @@ async function loadStudentProgress() {
     container.innerHTML = `<div class="empty-state">${escapeHtml(t("noTeam"))}</div>`;
     return;
   }
+  const teamId = state.selectedTeam;
+  const teamToken = state.teamTokens[teamId];
+  container.innerHTML = `<div class="empty-state">${escapeHtml(t("loading"))}</div>`;
   try {
-    const { tasks } = await request("/api/tasks?sort=date");
-    const grouped = await Promise.all(tasks.map(async (task) => ({
-      task,
-      proposals: (await request(`/api/tasks/${encodeURIComponent(task.id)}/proposals`)).proposals
-        .filter((proposal) => proposal.status === "accepted" && proposal.team_id === state.selectedTeam),
-    })));
-    const accepted = grouped.flatMap(({ task, proposals }) => proposals.map((proposal) => ({ task, proposal })));
-    if (!accepted.length) {
-      container.innerHTML = `<div class="empty-state"><strong>${escapeHtml(t("noAccepted"))}</strong>${escapeHtml(t("noAcceptedHint"))}</div>`;
+    const { proposals } = await request(`/api/teams/${encodeURIComponent(teamId)}/proposals`, { teamToken });
+    if (teamId !== state.selectedTeam) return;
+    if (!proposals.length) {
+      container.innerHTML = `<div class="empty-state"><strong>${escapeHtml(t("noTeamProposals"))}</strong>${escapeHtml(t("noTeamProposalsHint"))}</div>`;
       return;
     }
-    const items = await Promise.all(accepted.map(async ({ task, proposal }) => {
-      const { progress } = await request(`/api/proposals/${encodeURIComponent(proposal.id)}/progress`);
-      return `<article class="proposal-task"><p class="eyebrow">${escapeHtml(industryLabel(task.industry))} · ${Number(task.rating?.score) || 0} ${escapeHtml(t("ratingOutOf"))}</p><h3 class="task-title">${escapeHtml(task.title)}</h3><p class="task-summary">${escapeHtml(task.need || task.context || "")}</p><form class="progress-form student-progress-form" data-proposal-id="${escapeHtml(proposal.id)}"><label>${escapeHtml(t("progressResult"))}<textarea class="input" name="result" maxlength="2000" required></textarea></label><label>${escapeHtml(t("evidenceLink"))}<input class="input" name="evidence_link" type="url" placeholder="https://…" required></label><button class="button button-primary" type="submit">${escapeHtml(t("submitProgress"))}</button></form>${progress.map((entry) => `<div class="progress-entry"><strong>${escapeHtml(entry.result)}</strong><a href="${escapeHtml(entry.evidence_link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("evidence"))} ↗</a><span class="proposal-status" data-status="${escapeHtml(entry.status)}">${escapeHtml(t({ submitted: "progressPending", confirmed: "progressConfirmed", rejected: "progressRejected" }[entry.status], { points: entry.points }))}</span></div>`).join("")}</article>`;
+    const items = await Promise.all(proposals.map(async (proposal) => {
+      const { task } = await request(`/api/tasks/${encodeURIComponent(proposal.task_id)}`);
+      const progress = proposal.status === "accepted"
+        ? (await request(`/api/proposals/${encodeURIComponent(proposal.id)}/progress`, { teamToken })).progress
+        : [];
+      const statusKey = { new: "statusNew", accepted: "statusAccepted", rejected: "statusRejected" }[proposal.status] || "statusNew";
+      const progressForm = proposal.status === "accepted" ? `<form class="progress-form student-progress-form" data-proposal-id="${escapeHtml(proposal.id)}"><label>${escapeHtml(t("progressResult"))}<textarea class="input" name="result" maxlength="2000" required></textarea></label><label>${escapeHtml(t("evidenceLink"))}<input class="input" name="evidence_link" type="url" placeholder="https://…" required></label><button class="button button-primary" type="submit">${escapeHtml(t("submitProgress"))}</button></form>` : "";
+      return `<article class="proposal-task"><div class="proposal-item-head"><p class="eyebrow">${escapeHtml(industryLabel(task.industry))}</p><span class="proposal-status" data-status="${escapeHtml(proposal.status)}">${escapeHtml(t(statusKey))}</span></div><h3 class="task-title">${escapeHtml(task.title)}</h3><p class="task-summary">${escapeHtml(proposal.idea)}</p>${progressForm}${progress.map((entry) => `<div class="progress-entry"><strong>${escapeHtml(entry.result)}</strong><a href="${escapeHtml(entry.evidence_link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("evidence"))} ↗</a><span class="proposal-status" data-status="${escapeHtml(entry.status)}">${escapeHtml(t({ submitted: "progressPending", confirmed: "progressConfirmed", rejected: "progressRejected" }[entry.status], { points: entry.points }))}</span></div>`).join("")}</article>`;
     }));
+    if (teamId !== state.selectedTeam) return;
     container.innerHTML = items.join("");
   } catch (error) {
     container.innerHTML = `<div class="empty-state"><strong>${escapeHtml(t("progressLoadError"))}</strong>${escapeHtml(error.message)}</div>`;
@@ -413,25 +463,28 @@ async function loadProposals() {
   const container = byId("proposal-list");
   const board = byId("progress-board");
   container.innerHTML = `<div class="empty-state">${escapeHtml(t("loading"))}</div>`;
+  board.classList.add("hidden");
   try {
     const [{ tasks }, leaderboard] = await Promise.all([
       request("/api/tasks?sort=date"),
       request("/api/progress"),
     ]);
-    board.innerHTML = `<div class="scoreboard"><div><p class="eyebrow">${escapeHtml(t("progressBoard"))}</p><h3>${escapeHtml(t("teamProgressHeading"))}</h3><p>${escapeHtml(t("progressRule", { points: leaderboard.points_per_confirmed_stage }))}</p></div><ol>${leaderboard.teams.map((team) => `<li><strong>${escapeHtml(team.name)}</strong><span>${Number(team.progress_points) || 0} ${escapeHtml(t("points"))}</span></li>`).join("")}</ol></div>`;
-    const grouped = await Promise.all(tasks.map(async (task) => ({
+    const ownedTasks = tasks.filter((task) => Boolean(state.ownerTokens[task.id]));
+    board.classList.toggle("hidden", !ownedTasks.length);
+    if (ownedTasks.length) board.innerHTML = `<div class="scoreboard"><div><p class="eyebrow">${escapeHtml(t("progressBoard"))}</p><h3>${escapeHtml(t("teamProgressHeading"))}</h3><p>${escapeHtml(t("progressRule", { points: leaderboard.points_per_confirmed_stage }))}</p></div><ol>${leaderboard.teams.map((team) => `<li><strong>${escapeHtml(team.name)}</strong><span>${Number(team.progress_points) || 0} ${escapeHtml(t("points"))}</span></li>`).join("")}</ol></div>`;
+    const grouped = await Promise.all(ownedTasks.map(async (task) => ({
       task,
-      proposals: (await request(`/api/tasks/${encodeURIComponent(task.id)}/proposals`)).proposals,
+      proposals: (await request(`/api/tasks/${encodeURIComponent(task.id)}/proposals`, { ownerToken: state.ownerTokens[task.id] })).proposals,
     })));
     const groups = grouped;
     if (!groups.length) {
-      container.innerHTML = `<div class="empty-state"><strong>${escapeHtml(t("noPublishedTasks"))}</strong>${escapeHtml(t("noPublishedTasksHint"))}</div>`;
+      container.innerHTML = `<div class="empty-state"><strong>${escapeHtml(t("noPublishedTasks"))}</strong><p>${escapeHtml(t("noPublishedTasksHint"))}</p><button type="button" class="button button-primary" data-go="business">${escapeHtml(t("createFirstTask"))}</button></div>`;
       return;
     }
     const teamNames = Object.fromEntries(state.teams.map((team) => [team.id, team.name]));
     const groupHtml = await Promise.all(groups.map(async ({ task, proposals }) => {
       const proposalHtml = await Promise.all(proposals.map(async (proposal) => {
-          const { progress } = await request(`/api/proposals/${encodeURIComponent(proposal.id)}/progress`);
+          const { progress } = await request(`/api/proposals/${encodeURIComponent(proposal.id)}/progress`, { ownerToken: state.ownerTokens[task.id] });
           return `
           <div class="proposal-item">
             <div class="proposal-item-head"><strong>${escapeHtml(teamNames[proposal.team_id] || proposal.team_id)}</strong><span class="proposal-status" data-status="${escapeHtml(proposal.status)}">${escapeHtml(t({ new: "statusNew", accepted: "statusAccepted", rejected: "statusRejected" }[proposal.status] || "statusNew"))}</span></div>
@@ -454,6 +507,7 @@ async function loadProposals() {
 }
 
 async function editTask(taskId) {
+  if (!state.ownerTokens[taskId]) return showToast(t("error_forbidden"), true);
   try {
     const result = await request(`/api/tasks/${encodeURIComponent(taskId)}`);
     state.card = result.task;
@@ -468,24 +522,63 @@ async function editTask(taskId) {
   }
 }
 
+async function renderAccessList() {
+  const container = byId("access-list");
+  container.innerHTML = `<p class="helper-text">${escapeHtml(t("loading"))}</p>`;
+  try {
+    const [{ tasks }, { teams }] = await Promise.all([
+      request("/api/tasks?sort=date"), request("/api/teams"),
+    ]);
+    const entries = [
+      ...tasks.filter((task) => state.ownerTokens[task.id]).map((task) => ({
+        label: task.title, kind: t("accessTask"), code: `task:${task.id}:${state.ownerTokens[task.id]}`,
+      })),
+      ...teams.filter((team) => state.teamTokens[team.id]).map((team) => ({
+        label: team.name, kind: t("accessTeam"), code: `team:${team.id}:${state.teamTokens[team.id]}`,
+      })),
+    ];
+    container.innerHTML = entries.length ? entries.map((entry) => `
+      <div class="access-entry"><div><small>${escapeHtml(entry.kind)}</small><strong>${escapeHtml(entry.label)}</strong></div>
+      <code>${escapeHtml(entry.code)}</code><button class="button button-quiet copy-access" type="button">${escapeHtml(t("accessCopyButton"))}</button></div>`).join("")
+      : `<p class="access-empty">${escapeHtml(t("accessEmpty"))}</p>`;
+  } catch (error) {
+    container.innerHTML = `<p class="access-empty">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+async function importAccessCode(rawCode) {
+  const match = /^(task|team):(t_\d+|team_\d+):([A-Za-z0-9_-]{32,128})$/.exec(rawCode.trim());
+  if (!match || (match[1] === "task" && !match[2].startsWith("t_")) || (match[1] === "team" && !match[2].startsWith("team_"))) {
+    throw new Error(t("accessInvalid"));
+  }
+  const [, kind, id, token] = match;
+  if (kind === "task") {
+    await request(`/api/tasks/${encodeURIComponent(id)}/proposals`, { ownerToken: token });
+    state.ownerTokens[id] = token;
+    saveMap("sana-owner-tokens", state.ownerTokens);
+    byId("role-switch").value = "business";
+    byId("role-switch").dispatchEvent(new Event("change"));
+    switchView("proposals");
+  } else {
+    await request(`/api/teams/${encodeURIComponent(id)}/proposals`, { teamToken: token });
+    state.teamTokens[id] = token;
+    saveMap("sana-team-tokens", state.teamTokens);
+    state.selectedTeam = id;
+    saveSelectedTeam(id);
+    const result = await request("/api/teams");
+    state.teams = result.teams || [];
+    byId("role-switch").value = "student";
+    byId("role-switch").dispatchEvent(new Event("change"));
+  }
+}
+
 function bindEvents() {
   document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => switchView(tab.dataset.view)));
   byId("analyze").addEventListener("click", analyzeDraft);
   byId("build-card").addEventListener("click", buildCard);
   byId("publish").addEventListener("click", publishCard);
-  byId("load-demo").addEventListener("click", async () => {
-    try {
-      const example = await request("/api/demo");
-      state.demoAnswers = example.answers || {};
-      byId("draft").value = example.draft || "";
-      byId("industry").value = example.industry || "online_school";
-      await analyzeDraft();
-      showToast(t("toastDemo"));
-    } catch (error) {
-      showToast(error.message, true);
-    }
-  });
-  byId("draft").addEventListener("input", () => { state.demoAnswers = {}; });
+  byId("draft").addEventListener("input", saveUnpublishedDraft);
+  byId("industry").addEventListener("change", saveUnpublishedDraft);
   byId("cancel-edit").addEventListener("click", () => {
     state.editingId = null;
     state.card = null;
@@ -494,6 +587,48 @@ function bindEvents() {
   ["filter-industry", "filter-level", "filter-sort"].forEach((id) => byId(id).addEventListener("change", loadCatalog));
   byId("refresh-catalog").addEventListener("click", loadCatalog);
   byId("refresh-proposals").addEventListener("click", loadProposals);
+  byId("open-access").addEventListener("click", () => {
+    byId("access-dialog").showModal();
+    renderAccessList();
+  });
+  byId("close-access").addEventListener("click", () => byId("access-dialog").close());
+  byId("access-dialog").addEventListener("click", (event) => {
+    if (event.target === byId("access-dialog")) byId("access-dialog").close();
+  });
+  byId("access-list").addEventListener("click", async (event) => {
+    const button = event.target.closest(".copy-access");
+    if (!button) return;
+    const code = button.closest(".access-entry")?.querySelector("code")?.textContent;
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code);
+      showToast(t("accessCopied"));
+    } catch (_error) {
+      showToast(t("accessCopyManual"), true);
+    }
+  });
+  byId("access-import").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.target;
+    const submit = form.querySelector("button[type=submit]");
+    setBusy(submit, true, t("saving"));
+    try {
+      await importAccessCode(byId("access-code").value);
+      form.reset();
+      byId("access-dialog").close();
+      showToast(t("accessRestored"));
+    } catch (error) {
+      showToast(error.message, true);
+    } finally {
+      setBusy(submit, false);
+    }
+  });
+  byId("catalog-list").addEventListener("click", (event) => {
+    if (event.target.closest('[data-go="business"]')) switchView("business");
+  });
+  byId("proposal-list").addEventListener("click", (event) => {
+    if (event.target.closest('[data-go="business"]')) switchView("business");
+  });
   byId("role-switch").addEventListener("change", (event) => {
     state.role = event.target.value;
     document.querySelectorAll("[data-business-only]").forEach((item) => item.classList.toggle("hidden", state.role !== "business"));
@@ -504,19 +639,57 @@ function bindEvents() {
   byId("language-switch").addEventListener("change", async (event) => {
     state.locale = event.target.value;
     window.sanaI18n.applyLanguage(state.locale);
-    if (!byId("analysis").classList.contains("hidden") && byId("draft").value.trim()) {
+    const service = byId("service-status");
+    if (service.dataset.state === "ok") service.textContent = t("serviceOnline");
+    if (service.dataset.state === "error") service.textContent = t("serviceOffline");
+    if (!byId("analysis").classList.contains("hidden") && byId("card-workspace").classList.contains("hidden") && byId("draft").value.trim()) {
       await analyzeDraft(true);
     }
     if (state.card && !byId("card-workspace").classList.contains("hidden")) {
       renderCardFields();
-      renderRating(state.card.rating);
+    }
+    const badge = byId("source-badge");
+    if (badge.dataset.source) {
+      const isCard = !byId("card-workspace").classList.contains("hidden");
+      badge.textContent = t(isCard ? (badge.dataset.source === "ai" ? "sourceCardAi" : "sourceCardFallback") : (badge.dataset.source === "ai" ? "sourceAi" : "sourceFallback"));
     }
     if (!byId("view-catalog").classList.contains("hidden")) loadCatalog();
     if (!byId("view-proposals").classList.contains("hidden")) loadProposals();
+    if (byId("access-dialog").open) renderAccessList();
   });
   byId("active-team").addEventListener("change", (event) => {
     state.selectedTeam = event.target.value;
+    saveSelectedTeam(state.selectedTeam);
     loadStudentProgress();
+  });
+  byId("team-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.target;
+    const submit = form.querySelector("button[type=submit]");
+    const values = Object.fromEntries(new FormData(form).entries());
+    const splitTags = (value) => String(value || "").split(",").map((item) => item.trim()).filter(Boolean);
+    setBusy(submit, true, t("saving"));
+    try {
+      const result = await request("/api/teams", { method: "POST", body: {
+        name: String(values.name || "").trim(),
+        interests: splitTags(values.interests),
+        skills: splitTags(values.skills),
+        technologies: splitTags(values.technologies),
+      } });
+      state.teamTokens[result.team.id] = result.team_token;
+      saveMap("sana-team-tokens", state.teamTokens);
+      state.teams.push(result.team);
+      state.selectedTeam = result.team.id;
+      saveSelectedTeam(state.selectedTeam);
+      form.reset();
+      byId("team-setup").open = false;
+      showToast(t("toastTeamCreated"));
+      loadCatalog();
+    } catch (error) {
+      showToast(error.message, true);
+    } finally {
+      setBusy(submit, false);
+    }
   });
 
   byId("catalog-list").addEventListener("click", async (event) => {
@@ -524,6 +697,11 @@ function bindEvents() {
     if (!card) return;
     if (event.target.closest(".details-toggle")) card.querySelector(".task-details").classList.toggle("hidden");
     if (event.target.closest(".proposal-toggle")) {
+      if (!state.selectedTeam || !state.teamTokens[state.selectedTeam]) {
+        byId("team-setup").open = true;
+        byId("team-setup").scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
       card.querySelector(".task-details").classList.remove("hidden");
       card.querySelector(".proposal-form").classList.toggle("hidden");
     }
@@ -537,11 +715,11 @@ function bindEvents() {
     setBusy(submit, true, t("sending"));
     try {
       await request(`/api/tasks/${encodeURIComponent(form.dataset.taskId)}/proposals`, {
-        method: "POST", body: { ...values, team_id: state.selectedTeam },
+        method: "POST", body: { ...values, team_id: state.selectedTeam }, teamToken: state.teamTokens[state.selectedTeam],
       });
       showToast(t("toastProposal"));
       form.reset();
-      await loadProposals();
+      await loadStudentProgress();
     } catch (error) {
       showToast(error.message, true);
     } finally {
@@ -556,7 +734,7 @@ function bindEvents() {
     setBusy(submit, true, t("sending"));
     try {
       await request(`/api/proposals/${encodeURIComponent(form.dataset.proposalId)}/progress`, {
-        method: "POST", body: Object.fromEntries(new FormData(form).entries()),
+        method: "POST", body: Object.fromEntries(new FormData(form).entries()), teamToken: state.teamTokens[state.selectedTeam],
       });
       showToast(t("toastProgress"));
       await loadStudentProgress();
@@ -570,18 +748,22 @@ function bindEvents() {
     const decisionButton = event.target.closest(".decide");
     const progressButton = event.target.closest(".progress-decision");
     const editButton = event.target.closest(".edit-task");
+    const taskId = event.target.closest(".proposal-task")?.dataset.taskId;
+    const ownerToken = taskId ? state.ownerTokens[taskId] : "";
     if (decisionButton) {
       const decision = decisionButton.dataset.decision;
       setBusy(decisionButton, true, t("saving"));
       try {
         await request(`/api/proposals/${encodeURIComponent(decisionButton.dataset.id)}/decision`, {
           method: "POST",
-          body: { decision: decisionButton.dataset.decision },
+          body: { decision: decisionButton.dataset.decision }, ownerToken,
         });
         showToast(decision === "accepted" ? t("toastAccepted") : t("toastRejected"));
         await loadProposals();
       } catch (error) {
         showToast(error.message, true);
+      } finally {
+        setBusy(decisionButton, false);
       }
     } else if (progressButton) {
       const decision = progressButton.dataset.decision;
@@ -589,34 +771,27 @@ function bindEvents() {
       try {
         await request(`/api/progress/${encodeURIComponent(progressButton.dataset.id)}/decision`, {
           method: "POST", body: { decision: progressButton.dataset.decision },
+          ownerToken,
         });
         showToast(decision === "confirmed" ? t("toastStageConfirmed") : t("toastStageRejected"));
         await loadProposals();
       } catch (error) {
         showToast(error.message, true);
+      } finally {
+        setBusy(progressButton, false);
       }
     } else if (editButton) {
       editTask(editButton.dataset.taskId);
-    }
-  });
-  byId("proposal-list").addEventListener("submit", async (event) => {
-    if (!event.target.matches(".progress-form")) return;
-    event.preventDefault();
-    const form = event.target;
-    try {
-      await request(`/api/proposals/${encodeURIComponent(form.dataset.proposalId)}/progress`, {
-        method: "POST", body: Object.fromEntries(new FormData(form).entries()),
-      });
-      showToast(t("toastProgress"));
-      await loadProposals();
-    } catch (error) {
-      showToast(error.message, true);
     }
   });
 }
 
 async function start() {
   bindEvents();
+  try {
+    byId("draft").value = localStorage.getItem("sana-draft") || "";
+    byId("industry").value = localStorage.getItem("sana-industry") || "online_school";
+  } catch (_error) { /* Storage is optional. */ }
   try {
     const response = await fetch("/api/health");
     const result = await response.json();
@@ -631,8 +806,7 @@ async function start() {
   try {
     const result = await request("/api/teams");
     state.teams = result.teams || [];
-    state.selectedTeam = state.teams[0]?.id || "";
-    byId("active-team").innerHTML = state.teams.map((team) => `<option value="${escapeHtml(team.id)}">${escapeHtml(team.name)}</option>`).join("");
+    updateTeamControls();
   } catch (error) {
     showToast(error.message, true);
   }

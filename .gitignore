@@ -1,4 +1,5 @@
 .env
+.sana-data/
 .env.local
 *.key
 *.pem
