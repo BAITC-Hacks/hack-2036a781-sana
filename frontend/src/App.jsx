@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import brandReference from "./assets/sana-brand-reference.png";
 
 const FIELD_DEFS = [
   ["title", "Название задачи", "input"],
@@ -92,6 +93,41 @@ function Icon({ name }) {
   return <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
 }
 
+function BrandGlyph() {
+  return <svg className="reference-logo" viewBox="220 103 835 245" aria-hidden="true">
+    <image href={brandReference} width="1280" height="490" />
+  </svg>;
+}
+
+function SanaFace({ mood = "ready" }) {
+  return <span className={`sana-face sana-face-${mood}`} aria-hidden="true">
+    <i className="sana-eye sana-eye-left" />
+    <i className="sana-eye sana-eye-right" />
+    <i className="sana-mouth" />
+    {mood === "thinking" && <span className="thought-dots"><i /><i /><i /></span>}
+    {mood === "sleeping" && <span className="sleep-z">z</span>}
+  </span>;
+}
+
+function SanaMascot({ mood = "ready", compact = false }) {
+  const labels = { ready: "Sana готова помочь", curious: "Sana слушает", thinking: "Sana думает", happy: "Карточка готова", worried: "Проверьте сообщение", sleeping: "Sana отдыхает" };
+  return <div className={`sana-mascot reference-mascot sana-mascot-${mood} ${compact ? "sana-mascot-compact" : ""}`} role="img" aria-label={labels[mood]}>
+    <svg className="reference-head" viewBox="0 0 165 137" aria-hidden="true" shapeRendering="crispEdges">
+      <g fill="none" stroke="#18e98a" strokeWidth="5">
+        <path d="M82 48V19M68 48V37H61V29H52M96 48V37H103V29H113" />
+        <path d="M76 5H89V18H76ZM42 19H54V31H42ZM111 19H123V31H111Z" />
+      </g>
+      <path fill="#07894c" d="M8 72H17V115H8ZM148 72H157V115H148Z" />
+      <path fill="#35f49d" d="M5 77H11V109H5ZM154 77H160V109H154Z" />
+      <path fill="#10d878" d="M34 51H131V56H141V63H148V119H141V127H131V132H34V127H24V119H17V63H24V56H34Z" />
+      <path fill="#92ffcb" d="M34 51H131V56H141V63H135V60H30V64H24V59H34Z" />
+      <path fill="#079956" d="M24 116H31V123H135V116H148V119H141V127H131V132H34V127H24Z" />
+      <path fill="#00150c" d="M35 65H130V70H137V113H130V120H35V113H28V72H35Z" />
+    </svg>
+    <SanaFace mood={mood} />
+  </div>;
+}
+
 function Toast({ toast }) {
   if (!toast) return null;
   return <div className={`toast ${toast.error ? "toast-error" : ""}`}>{toast.text}</div>;
@@ -125,20 +161,20 @@ function RatingPanel({ rating }) {
       </div>
       <div className="metric-list">
         {(rating?.breakdown || []).map((item) => (
-          <div className="metric" key={item.key}>
+          <div className={`metric ${item.earned < item.max ? "metric-incomplete" : ""}`} key={item.key}>
             <div><span>{METRIC_LABELS[item.key] || item.label}</span><strong>{item.earned}/{item.max}</strong></div>
             <div className="metric-track"><i style={{ width: `${(item.earned / item.max) * 100}%` }} /></div>
           </div>
         ))}
       </div>
       {!!rating?.tips?.length && (
-        <div className="rating-tip"><Icon name="spark" /><span>{rating.tips[0]}</span></div>
+        <div className="rating-guidance"><h4>Чего не хватает и как повысить рейтинг</h4>{rating.tips.map(tip => <div className="rating-tip" key={tip}><Icon name="spark" /><span>{tip}</span></div>)}</div>
       )}
     </section>
   );
 }
 
-function CardEditor({ card, setCard, onPublish, busy, businessProfile }) {
+function CardEditor({ card, setCard, onPublish, busy, businessProfile, mascotMood }) {
   const applyProfile = () => {
     if (!businessProfile?.name && !businessProfile?.email) return;
     setCard((current) => ({
@@ -154,7 +190,8 @@ function CardEditor({ card, setCard, onPublish, busy, businessProfile }) {
       </header>
       {!card ? (
         <div className="empty-preview">
-          <div className="empty-orbit"><Icon name="spark" /></div>
+          <SanaMascot mood={mascotMood} />
+          <span className="assistant-kicker"><i /> Sana рядом на каждом шаге</span>
           <h3>Здесь появится карточка</h3>
           <p>Расскажите AI о задаче и ответьте на уточняющие вопросы. Поля и рейтинг будут заполняться только вашими фактами.</p>
         </div>
@@ -204,10 +241,20 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
   const [card, setCard] = useState(null);
   const [source, setSource] = useState("");
   const [busy, setBusy] = useState(false);
-  const endRef = useRef(null);
+  const [idle, setIdle] = useState(false);
+  const messagesRef = useRef(null);
 
   const cardFingerprint = card ? FIELD_DEFS.map(([key]) => card[key] || "").concat(card.industry || "").join("\u0001") : "";
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, busy]);
+  useEffect(() => {
+    const container = messagesRef.current;
+    if (container) container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+  }, [messages, busy]);
+  useEffect(() => {
+    setIdle(false);
+    if (busy) return undefined;
+    const timer = window.setTimeout(() => setIdle(true), 18000);
+    return () => window.clearTimeout(timer);
+  }, [messages, composer, phase, busy]);
   useEffect(() => {
     if (!card) return undefined;
     const timer = setTimeout(async () => {
@@ -312,11 +359,31 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
     setComposer(""); setQuestions([]); setAnswers({}); setQuestionIndex(0); setDraft(""); setCard(null); setPhase("draft"); setSource("");
   }
 
+  const lastMessage = messages[messages.length - 1];
+  const mascotMood = busy
+    ? "thinking"
+    : lastMessage?.error
+      ? "worried"
+      : phase === "card"
+        ? "happy"
+        : idle
+          ? "sleeping"
+          : composer.trim()
+            ? "curious"
+            : "ready";
+
   return (
     <main className="workspace-shell">
+      <section className="workspace-intro">
+        <div><span className="eyebrow">SANA · AI-КОНСТРУКТОР</span><h1>От идеи — к понятной задаче</h1><p>Опишите цель. Sana задаст вопросы и поможет подготовить карточку для команды.</p></div>
+        <SanaMascot mood={mascotMood} />
+      </section>
+      <div className="workflow-steps" aria-label="Этапы подготовки задачи">
+        {[["draft", "Опишите задачу"], ["questions", "Ответьте Sana"], ["card", "Проверьте и опубликуйте"]].map(([step, label], index) => <div key={step} className={phase === step ? "current" : ""} aria-current={phase === step ? "step" : undefined}><span>{String(index + 1).padStart(2, "0")}</span>{label}</div>)}
+      </div>
       <section className="chat-panel">
         <header className="panel-heading chat-heading">
-          <div><span className="eyebrow">AI-КОНСТРУКТОР</span><h2>Диалог с Sana</h2></div>
+          <div className="chat-title"><div className="agent-presence"><SanaMascot mood={mascotMood} compact /></div><div><span className="eyebrow">AI-КОНСТРУКТОР</span><h2>Диалог с Sana</h2></div></div>
           <div className="chat-actions"><span className={`source-badge ${source}`}>{source === "ai" ? "AI" : source === "fallback" ? "Резервный режим" : "онлайн"}</span><button className="icon-button" onClick={reset} title="Начать заново"><Icon name="refresh" /></button></div>
         </header>
         <div className="industry-row">
@@ -325,26 +392,26 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
             {Object.entries(INDUSTRIES).filter(([key]) => key !== "education").map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
         </div>
-        <div className="messages">
+        <div className="messages" ref={messagesRef}>
           {messages.map((message, index) => (
             <div className={`message-row ${message.role}`} key={`${message.role}-${index}`}>
-              {message.role === "ai" && <div className="ai-avatar"><Icon name="spark" /></div>}
+              {message.role === "ai" && <div className="ai-avatar"><SanaMascot mood={message.pending ? "thinking" : message.error ? "worried" : "ready"} compact /></div>}
               <div className={`message ${message.error ? "message-error" : ""} ${message.muted ? "muted" : ""}`}>{message.text}{message.pending && <span className="typing"><i/><i/><i/></span>}</div>
             </div>
           ))}
-          <div ref={endRef} />
         </div>
         <div className="composer-wrap">
           {phase === "draft" && <button type="button" className="demo-chip" onClick={loadDemo}><Icon name="spark" /> Загрузить пример</button>}
           <div className="composer">
             <textarea
+              aria-label="Сообщение Sana"
               value={composer}
               disabled={busy}
               placeholder={phase === "draft" ? "Опишите задачу бизнеса…" : phase === "questions" ? "Ответьте своими словами…" : "Карточка готова — редактируйте справа"}
               onChange={(e) => setComposer(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
             />
-            <button type="button" disabled={busy || !composer.trim()} onClick={() => sendMessage()}><Icon name="send" /></button>
+            <button type="button" aria-label="Отправить сообщение" disabled={busy || !composer.trim()} onClick={() => sendMessage()}><Icon name="send" /></button>
           </div>
           <div className="composer-foot">
             <span>Enter — отправить · Shift+Enter — новая строка</span>
@@ -352,12 +419,12 @@ function ChatWorkspace({ notify, ownerTokens, setOwnerTokens, businessProfile, o
           </div>
         </div>
       </section>
-      <CardEditor card={card} setCard={setCard} onPublish={publish} busy={busy} businessProfile={businessProfile} />
+      <CardEditor card={card} setCard={setCard} onPublish={publish} busy={busy} businessProfile={businessProfile} mascotMood={mascotMood} />
     </main>
   );
 }
 
-function ProposalForm({ task, selectedTeam, teamTokens, notify, onDone }) {
+function ProposalForm({ task, selectedTeam, teamTokens, notify, onDone, onProfile }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   async function submit(event) {
@@ -372,17 +439,17 @@ function ProposalForm({ task, selectedTeam, teamTokens, notify, onDone }) {
     finally { setBusy(false); }
   }
   return <>
-    <button className="primary-button small" onClick={() => setOpen(!open)}>{selectedTeam ? "Предложить решение" : "Сначала создайте команду"}</button>
+    <div className="proposal-entry"><div><strong>{selectedTeam ? "Есть идея решения?" : "Чтобы откликнуться, нужен профиль команды"}</strong><p>{selectedTeam ? "Опишите подход, план и сроки. Решение принимает бизнес." : "Создайте команду в профиле, затем вернитесь в каталог и отправьте предложение."}</p></div><button className="primary-button small" aria-expanded={selectedTeam ? open : undefined} onClick={() => selectedTeam ? setOpen(!open) : onProfile()}>{selectedTeam ? (open ? "Скрыть форму" : "Предложить решение") : "Создать команду"}<Icon name="arrow" /></button></div>
     {open && selectedTeam && <form className="proposal-form" onSubmit={submit}>
-      <textarea name="idea" placeholder="Идея решения" required maxLength="2000" />
-      <textarea name="plan" placeholder="Короткий план работы" required maxLength="2000" />
-      <div className="form-row"><input name="deadline" placeholder="Срок, например 3 недели" required /><input name="link" type="url" placeholder="https://prototype.example" required /></div>
+      <label>Идея решения<textarea name="idea" placeholder="Как вы предлагаете решить задачу?" required maxLength="2000" /></label>
+      <label>План работы<textarea name="plan" placeholder="Основные этапы и ожидаемый результат" required maxLength="2000" /></label>
+      <div className="form-row"><label>Срок<input name="deadline" placeholder="Например, 3 недели" required /></label><label>Ссылка на прототип<input name="link" type="url" placeholder="https://prototype.example" required /></label></div>
       <button className="dark-button" disabled={busy}>{busy ? "Отправляем…" : "Отправить предложение"}</button>
     </form>}
   </>;
 }
 
-function Catalog({ role, selectedTeam, teamTokens, notify }) {
+function Catalog({ role, selectedTeam, teamTokens, notify, onProfile }) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ industry: "", level: "", sort: "rating" });
@@ -397,7 +464,7 @@ function Catalog({ role, selectedTeam, teamTokens, notify }) {
     finally { setLoading(false); }
   }
   useEffect(() => { load(); }, [filters.industry, filters.level, filters.sort]);
-  return <main className="page-shell">
+  return <main className="page-shell catalog-page">
     <header className="page-hero"><div><span className="eyebrow">ОТКРЫТЫЙ КАТАЛОГ</span><h1>Задачи, готовые к работе</h1><p>Низкий рейтинг ничего не скрывает — любая команда может откликнуться.</p></div><button className="outline-button" onClick={load}><Icon name="refresh" /> Обновить</button></header>
     <div className="filter-bar">
       <select value={filters.industry} onChange={(e) => setFilters({ ...filters, industry: e.target.value })}><option value="">Все отрасли</option>{Object.entries(INDUSTRIES).map(([v,l]) => <option value={v} key={v}>{l}</option>)}</select>
@@ -405,6 +472,7 @@ function Catalog({ role, selectedTeam, teamTokens, notify }) {
       <select value={filters.sort} onChange={(e) => setFilters({ ...filters, sort: e.target.value })}><option value="rating">Сначала высокий рейтинг</option><option value="date">Сначала новые</option></select>
       <span>{tasks.length} задач</span>
     </div>
+    <div className="catalog-guide"><Icon name="spark" /><div><strong>{role === "student" ? "Выберите задачу → изучите детали → предложите решение" : "Опубликованные задачи доступны всем командам"}</strong><p>{role === "student" ? "Рейтинг — полнота описания, а не ограничение для отклика. Можно работать с задачей любого уровня." : "Предложения по вашим задачам появятся в разделе «Мои задачи». Команду выбираете только вы."}</p></div>{role === "student" && !selectedTeam && <button className="outline-button" onClick={onProfile}>Создать команду <Icon name="arrow" /></button>}</div>
     {loading ? <div className="loading-grid">Загружаем каталог…</div> : !tasks.length ? <Empty title="Пока нет опубликованных задач" text="Создайте первую задачу в AI-конструкторе." /> : (
       <div className="task-grid">{tasks.map((task) => {
         const isOpen = expanded === task.id;
@@ -412,11 +480,10 @@ function Catalog({ role, selectedTeam, teamTokens, notify }) {
           <div className="task-top"><span className="industry-pill">{INDUSTRIES[task.industry] || task.industry}</span><ScoreRing compact rating={task.rating} /></div>
           <h3>{task.title}</h3><p>{task.need || task.context || "Описание уточняется"}</p>
           <div className="task-meta"><span style={{ color: LEVELS[task.rating?.level]?.[1] }}>● {LEVELS[task.rating?.level]?.[0]}</span><span>{new Date(task.created_at).toLocaleDateString("ru-RU")}</span></div>
-          <button className="details-button" onClick={() => setExpanded(isOpen ? "" : task.id)}>Подробнее <Icon name="arrow" /></button>
+          <button className="details-button" aria-expanded={isOpen} onClick={() => setExpanded(isOpen ? "" : task.id)}>{isOpen ? "Свернуть подробности" : "Открыть задачу"} <Icon name="arrow" /></button>
           {isOpen && <div className="task-details">
-            {FIELD_DEFS.filter(([key]) => key !== "title").map(([key,label]) => <div key={key}><strong>{label}</strong><span>{task[key] || "Не указано"}</span></div>)}
-            <RatingPanel rating={task.rating} />
-            {role === "student" && <ProposalForm task={task} selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} />}
+            <div className="task-facts"><h4>Описание и условия</h4>{FIELD_DEFS.filter(([key]) => key !== "title").map(([key,label]) => <div className="task-fact" key={key}><strong>{label}</strong><span className={!task[key] ? "fact-missing" : ""}>{task[key] || "Пока не указано бизнесом"}</span></div>)}</div>
+            <aside className="task-decision"><RatingPanel rating={task.rating} />{role === "student" && <ProposalForm task={task} selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} onProfile={onProfile} />}</aside>
           </div>}
         </article>;
       })}</div>
@@ -493,7 +560,8 @@ function TeamOffers({ selectedTeam, teamTokens, notify }) {
   useEffect(() => { load(); }, [selectedTeam]);
   async function submitProgress(event, proposalId) {
     event.preventDefault();
-    try { await api(`/api/proposals/${proposalId}/progress`, { method: "POST", body: Object.fromEntries(new FormData(event.currentTarget).entries()), teamToken: teamTokens[selectedTeam] }); notify("Результат отправлен бизнесу"); event.currentTarget.reset(); load(); }
+    const form = event.currentTarget;
+    try { await api(`/api/proposals/${proposalId}/progress`, { method: "POST", body: Object.fromEntries(new FormData(form).entries()), teamToken: teamTokens[selectedTeam] }); notify("Результат отправлен бизнесу"); form.reset(); load(); }
     catch (error) { notify(error.message, true); }
   }
   if (loading) return <div className="loading-grid">Загружаем предложения команды…</div>;
@@ -537,8 +605,39 @@ function Profile({ role, businessProfile, setBusinessProfile, teams, setTeams, s
   </main>;
 }
 
+function Landing({ onStart, onCatalog }) {
+  const [moodIndex, setMoodIndex] = useState(0);
+  const moods = ["ready", "curious", "thinking", "happy", "sleeping"];
+  useEffect(() => {
+    const timer = window.setInterval(() => setMoodIndex(index => (index + 1) % 5), 4500);
+    return () => window.clearInterval(timer);
+  }, []);
+  return <main className="landing">
+    <section className="landing-hero">
+      <div className="landing-copy"><span className="landing-tag"><i /> ОТ ИДЕИ К ДЕЙСТВИЮ</span><h1>Большие дела<br />начинаются<br />с <em>ясной задачи.</em></h1><p>Не нужно сразу знать все ответы. Расскажите Sana о своей идее — AI поможет превратить её в понятную задачу для студенческой команды.</p><div className="landing-actions"><button className="primary-button" onClick={onStart}>Создать задачу <Icon name="arrow" /></button><a href="#how-sana-works">Как это работает ↓</a></div><div className="landing-note"><Icon name="check" /> AI помогает. Решение всегда за вами.</div></div>
+      <div className="landing-scene" aria-label="Sana превращает идею в готовую карточку"><div className="scene-grid" aria-hidden="true" /><div className="scene-orbit orbit-one" aria-hidden="true" /><div className="scene-orbit orbit-two" aria-hidden="true" /><div className="scene-message"><span>ВАША ИДЕЯ</span><p>«Хочу сделать обучение удобнее.<br />С чего начать?»</p></div><div className="scene-agent"><SanaMascot mood="happy" /><span>Сәлем! Давайте разберёмся.</span></div><div className="scene-card"><div><span className="scene-check"><Icon name="check" /></span><strong>Теперь всё по полочкам</strong></div><p>Цель · аудитория · результат</p><div className="scene-lines"><i /><i /><i /></div><small>Так может выглядеть ваша задача</small></div><span className="scene-coordinate">SANA / YOUR IDEA, DEFINED.</span></div>
+    </section>
+    <div className="landing-principles"><span>Меньше неопределённости</span><b>+</b><span>Больше смысла</span><b>+</b><span>Одна понятная точка старта</span></div>
+    <section className="landing-process" id="how-sana-works"><div className="landing-section-title"><span className="eyebrow">01 / КАК ЭТО РАБОТАЕТ</span><h2>Не сложная форма.<br />Обычный разговор.</h2><p>Sana ведёт по шагам: от первых слов до задачи, на которую могут откликнуться команды.</p></div><div className="process-grid">{[["01", "Расскажите как есть", "Опишите проблему своими словами. Даже если пока есть только идея — этого достаточно, чтобы начать.", "chat"], ["02", "Найдите ясность", "Sana задаст вопросы о цели, пользователях и результате. Ничего не придумает за вас.", "spark"], ["03", "Соберите задачу", "Проверьте живую карточку и рейтинг готовности. Измените детали и опубликуйте, когда будете готовы.", "check"]].map(([number,title,text,icon]) => <article className="process-card" key={number}><div><span>{number}</span><Icon name={icon} /></div><h3>{title}</h3><p>{text}</p></article>)}</div></section>
+    <section className="landing-control"><div><span className="eyebrow">02 / ВЫ УПРАВЛЯЕТЕ ПРОЦЕССОМ</span><h2>Умный помощник.<br /><em>Не автопилот.</em></h2><p>Рейтинг показывает, насколько подробно описана задача, а не насколько хороша ваша идея. Sana объяснит, чего не хватает и что можно улучшить.</p><button className="primary-button" onClick={onStart}>Попробовать с моей идеей <Icon name="arrow" /></button></div><div className="control-list">{[["Только ваши факты", "Нет информации? Поле останется пустым — без выдуманных бюджетов и сроков."], ["Публикация с вашего согласия", "Карточку можно отредактировать. Только вы решаете, когда она готова."], ["Команду выбираете вы", "Сравнивайте предложения сами. Низкий рейтинг не скрывает задачу из каталога."]].map(([title,text]) => <article key={title}><Icon name="check" /><div><h3>{title}</h3><p>{text}</p></div></article>)}</div></section>
+    <section className="landing-paths"><div className="landing-section-title"><span className="eyebrow">03 / ДВЕ СТОРОНЫ ОДНОГО ДЕЛА</span><h2>Идеям нужны команды.<br />Командам — реальные задачи.</h2></div><div className="path-grid"><article><span className="eyebrow">ДЛЯ БИЗНЕСА</span><h3>Ваша задача.<br />Новый взгляд на решение.</h3><p>Сформулируйте запрос с Sana, получите предложения и выберите подходящую команду.</p><button className="dark-button" onClick={onStart}>У меня есть задача <Icon name="arrow" /></button></article><article><span className="eyebrow">ДЛЯ СТУДЕНЧЕСКИХ КОМАНД</span><h3>Ваши навыки.<br />Настоящий опыт.</h3><p>Найдите задачу в каталоге, предложите план и покажите бизнесу результат своей работы.</p><button className="dark-button" onClick={onCatalog}>Посмотреть задачи <Icon name="arrow" /></button></article></div></section>
+    <section className="landing-journey"><div className="landing-section-title"><span className="eyebrow">04 / ПОЛНЫЙ ПУТЬ В SANA</span><h2>От первого «хочу»<br />до выбранной команды.</h2><p>Все этапы доступны в рабочем интерфейсе. Публикация задачи и выбор команды — только после вашего решения.</p></div><ol className="journey-grid">{[
+      ["Черновик", "Бизнес описывает проблему — даже коротко и без деталей."],
+      ["Уточняющие вопросы", "Система анализирует описание и задаёт минимум 3 вопроса по существу."],
+      ["Живая карточка", "Из ответов собирается карточка. Любое поле можно отредактировать."],
+      ["Ручная проверка", "Бизнес проверяет формулировки и подтверждает готовность карточки."],
+      ["Понятный рейтинг", "Оценка 0–100 с разбивкой баллов, недостающими сведениями и советами."],
+      ["Улучшение", "Добавьте информацию — рейтинг пересчитается с учётом новых деталей."],
+      ["Общий каталог", "После публикации задача появляется в каталоге с сортировкой по рейтингу."],
+      ["Предложение команды", "Студенты открывают задачу и отправляют идею, план и сроки решения."],
+      ["Решение бизнеса", "Бизнес вручную принимает или отклоняет предложение. Выбор за человеком."],
+    ].map(([title,text],index) => <li key={title}><span>{String(index + 1).padStart(2,"0")}</span><h3>{title}</h3><p>{text}</p></li>)}</ol></section>
+    <section className="landing-finale"><button className="mascot-wake" onClick={() => setMoodIndex(index => (index + 1) % moods.length)} aria-label="Поменять настроение Sana"><SanaMascot mood={moods[moodIndex]} /></button><span className="eyebrow">ОСТАЛОСЬ СДЕЛАТЬ ПЕРВЫЙ ШАГ</span><h2>А какая идея у вас?</h2><p>Начните с одного предложения. Остальное разберём вместе.</p><button className="primary-button" onClick={onStart}>Начать разговор с Sana <Icon name="arrow" /></button></section><footer className="landing-footer"><strong>SaNa</strong><span>Саналы көмекші — сенің білім серігің.</span><a href="#how-sana-works">Как работает Sana ↑</a></footer>
+  </main>;
+}
+
 export default function App() {
-  const [view, setView] = useState("workspace");
+  const [view, setView] = useState("home");
   const [role, setRole] = useState("business");
   const [toast, setToast] = useState(null);
   const [ownerTokens, setOwnerTokens] = useState(() => readJson("sana-owner-tokens", {}));
@@ -558,21 +657,26 @@ export default function App() {
   useEffect(() => {
     if (role === "student" && view === "workspace") setView("catalog");
   }, [role]);
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [view, role]);
   const activeTeam = useMemo(() => teams.find((team) => team.id === selectedTeam), [teams, selectedTeam]);
   const nav = [
+    ["home", "spark", "Главная"],
     ...(role === "business" ? [["workspace", "chat", "AI-конструктор"]] : []),
     ["catalog", "catalog", "Каталог"], ["offers", "offers", role === "business" ? "Мои задачи" : "Мои отклики"], ["profile", "user", "Профиль"],
   ];
-  return <div className="app">
+  return <div className={`app ${view === "home" ? "app-landing" : ""}`}>
     <header className="topbar">
-      <button className="brand" onClick={() => setView(role === "business" ? "workspace" : "catalog")}><span className="brand-mark"><Icon name="spark" /></span><span><strong>SANA</strong><small>AI · PRACTICE</small></span></button>
-      <nav>{nav.map(([id,icon,label]) => <button className={view===id?"active":""} key={id} onClick={()=>setView(id)}><Icon name={icon}/><span>{label}</span></button>)}</nav>
+      <button className="brand" aria-label="SaNa — главная" onClick={() => setView("home")}><BrandGlyph /><span className="brand-caption">AI БІЛІМ АГЕНТІ</span></button>
+      <nav>{nav.map(([id,icon,label]) => <button aria-label={label} aria-current={view===id?"page":undefined} className={view===id?"active":""} key={id} onClick={()=>setView(id)}><Icon name={icon}/><span>{label}</span></button>)}</nav>
       <div className="top-actions"><span className={`service ${service}`}><i />{service === "online" ? "Сервер работает" : service === "offline" ? "Нет связи" : "Проверяем"}</span><div className="role-switch"><button className={role==="business"?"active":""} onClick={()=>setRole("business")}>Бизнес</button><button className={role==="student"?"active":""} onClick={()=>setRole("student")}>Команда</button></div><button className="profile-mini" onClick={()=>setView("profile")}><span>{role === "business" ? (businessProfile.name || "Б").slice(0,1).toUpperCase() : (activeTeam?.name || "К").slice(0,1).toUpperCase()}</span><div><strong>{role === "business" ? businessProfile.name || "Ваш профиль" : activeTeam?.name || "Создать команду"}</strong><small>{role === "business" ? businessProfile.company || "Представитель бизнеса" : "Студенческая команда"}</small></div></button></div>
     </header>
     {view === "workspace" && role === "business" && <ChatWorkspace notify={notify} ownerTokens={ownerTokens} setOwnerTokens={setOwnerTokens} businessProfile={businessProfile} onPublished={()=>setView("offers")} />}
-    {view === "catalog" && <Catalog role={role} selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} />}
+    {view === "catalog" && <Catalog role={role} selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} onProfile={() => setView("profile")} />}
     {view === "offers" && <Offers role={role} ownerTokens={ownerTokens} selectedTeam={selectedTeam} teamTokens={teamTokens} notify={notify} />}
     {view === "profile" && <Profile role={role} businessProfile={businessProfile} setBusinessProfile={setBusinessProfile} teams={teams} setTeams={setTeams} selectedTeam={selectedTeam} setSelectedTeam={setSelectedTeam} teamTokens={teamTokens} setTeamTokens={setTeamTokens} notify={notify} />}
+    {view === "home" && <Landing onStart={() => { setRole("business"); setView("workspace"); }} onCatalog={() => { setRole("student"); setView("catalog"); }} />}
     <Toast toast={toast} />
   </div>;
 }
